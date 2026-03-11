@@ -51,6 +51,7 @@ export class MockupScene {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.5; // Increased exposure for brighter whites
         
         this.renderer.domElement.style.width = '100%';
         this.renderer.domElement.style.height = '100%';
@@ -63,13 +64,13 @@ export class MockupScene {
         this.controls.dampingFactor = 0.05;
         this.controls.target.set(0, 0, 0);
         
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); // Increased from 0.6
         this.scene.add(ambientLight);
-        const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        const mainLight = new THREE.DirectionalLight(0xffffff, 2.0); // Increased from 1.2
         mainLight.position.set(10, 20, 15);
         mainLight.castShadow = true;
         this.scene.add(mainLight);
-        const fillLight = new THREE.DirectionalLight(0xe2e8f0, 0.8);
+        const fillLight = new THREE.DirectionalLight(0xe2e8f0, 1.2); // Increased from 0.8
         fillLight.position.set(-15, 5, -10);
         this.scene.add(fillLight);
         
@@ -91,8 +92,8 @@ export class MockupScene {
             map: this.canvasTexture,
             transparent: true,
             alphaTest: 0.05,
-            metalness: 0.1,
-            roughness: 0.3,
+            metalness: 0.0, // Reduced from 0.1 to avoid graying out whites
+            roughness: 0.6, // Increased to make it more matte and reflect less environment
             side: THREE.FrontSide
         });
         
