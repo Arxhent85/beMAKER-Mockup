@@ -362,6 +362,15 @@ export class MockupScene {
 
         if(this.uploadedImage) {
             this.updateTexture(d_mm, h_mm, wrapPercent, rotX, posY);
+            this.can1.getObjectByName("label")!.visible = true;
+            this.can2.getObjectByName("label")!.visible = true;
+            this.cart1.getObjectByName("label")!.visible = true;
+            this.cart2.getObjectByName("label")!.visible = true;
+        } else {
+            this.can1.getObjectByName("label")!.visible = false;
+            this.can2.getObjectByName("label")!.visible = false;
+            this.cart1.getObjectByName("label")!.visible = false;
+            this.cart2.getObjectByName("label")!.visible = false;
         }
     }
     

@@ -125,24 +125,32 @@ export default function App() {
       if (file.type === 'application/pdf') {
         const fileReader = new FileReader();
         fileReader.onload = async function() {
-          const typedarray = new Uint8Array(this.result as ArrayBuffer);
-          const pdfjsLib = (window as any).pdfjsLib;
-          const pdf = await pdfjsLib.getDocument(typedarray).promise;
-          const page = await pdf.getPage(1);
-          const viewport = page.getViewport({ scale: 4.0 });
-          const tempCanvas = document.createElement('canvas');
-          const tempCtx = tempCanvas.getContext('2d')!;
-          tempCanvas.width = viewport.width;
-          tempCanvas.height = viewport.height;
-          await page.render({ canvasContext: tempCtx, viewport: viewport }).promise;
-          const img = new Image();
-          img.onload = () => {
-            setUploadedImage(img);
-            setUploadText("PDF in HD geladen!");
+          try {
+            const typedarray = new Uint8Array(this.result as ArrayBuffer);
+            const pdfjsLib = (window as any).pdfjsLib;
+            if (!pdfjsLib) throw new Error("PDF.js not loaded");
+            const pdf = await pdfjsLib.getDocument(typedarray).promise;
+            const page = await pdf.getPage(1);
+            const viewport = page.getViewport({ scale: 4.0 });
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d')!;
+            tempCanvas.width = viewport.width;
+            tempCanvas.height = viewport.height;
+            await page.render({ canvasContext: tempCtx, viewport: viewport }).promise;
+            const img = new Image();
+            img.onload = () => {
+              setUploadedImage(img);
+              setUploadText("PDF in HD geladen!");
+              setIsUploading(false);
+              setTimeout(() => setUploadText("Anderes PDF/Bild hochladen"), 2500);
+            };
+            img.src = tempCanvas.toDataURL('image/png');
+          } catch (err) {
+            console.error(err);
             setIsUploading(false);
+            setUploadText("Fehler beim Laden");
             setTimeout(() => setUploadText("Anderes PDF/Bild hochladen"), 2500);
-          };
-          img.src = tempCanvas.toDataURL('image/png');
+          }
         };
         fileReader.readAsArrayBuffer(file);
       } else {
@@ -152,6 +160,12 @@ export default function App() {
           setUploadedImage(img);
           setUploadText("Bild geladen!");
           setIsUploading(false);
+          setTimeout(() => setUploadText("Anderes PDF/Bild hochladen"), 2500);
+        };
+        img.onerror = (err) => {
+          console.error("Image load error", err);
+          setIsUploading(false);
+          setUploadText("Fehler beim Laden");
           setTimeout(() => setUploadText("Anderes PDF/Bild hochladen"), 2500);
         };
         img.src = url;
