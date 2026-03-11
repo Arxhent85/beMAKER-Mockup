@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-body { margin: 0; overflow: hidden; }
+body { margin: 0; }
 
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

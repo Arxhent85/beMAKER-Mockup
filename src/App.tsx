@@ -223,10 +223,10 @@ export default function App() {
   const inactiveClasses = "flex-1 py-2 px-3 rounded-md border text-sm font-bold transition-colors bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700";
 
   return (
-    <div className="flex flex-col md:flex-row h-[100dvh] w-screen relative bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 transition-colors duration-300 overflow-hidden">
+    <div className="flex flex-col md:flex-row min-h-[100dvh] md:h-[100dvh] w-full relative bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 transition-colors duration-300 md:overflow-hidden">
       
       {/* 3D VIEWPORT */}
-      <div className={`w-full shrink-0 relative border-b md:border-b-0 border-slate-200 dark:border-slate-800 z-10 transition-all duration-300 ${isFullscreen ? 'fixed inset-0 z-50 h-[100dvh]' : 'h-[45vh] md:h-full md:flex-1'}`}>
+      <div className={`w-full shrink-0 border-b md:border-b-0 border-slate-200 dark:border-slate-800 transition-all duration-300 overflow-hidden ${isFullscreen ? 'fixed inset-0 z-50 h-[100dvh]' : 'h-[45vh] sticky top-0 z-20 md:h-full md:flex-1 md:relative md:z-10 bg-slate-50 dark:bg-slate-900'}`}>
         
         <div className="absolute top-4 left-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur p-2 rounded shadow-sm z-20 text-[10px] md:text-xs text-slate-600 dark:text-slate-300 pointer-events-none border border-white/50 dark:border-slate-700/50">
           <span className="font-bold">Kamera:</span> 1-Finger wischen, 2-Finger zoomen
@@ -281,7 +281,7 @@ export default function App() {
 
       {/* SIDEBAR UI */}
       {!isFullscreen && (
-        <div className="w-full md:w-[400px] flex-1 md:flex-none flex flex-col z-0 overflow-hidden order-last md:order-first bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 shadow-2xl">
+        <div className="w-full md:w-[400px] flex flex-col z-0 order-last md:order-first bg-slate-50 dark:bg-slate-900 md:border-r border-slate-200 dark:border-slate-800 shadow-2xl md:h-full md:overflow-hidden">
           
           <div className="p-4 bg-slate-900 dark:bg-black text-white shrink-0 flex justify-between items-center z-10 shadow-md">
             <div>
@@ -296,7 +296,7 @@ export default function App() {
             </button>
           </div>
 
-          <div className="p-4 flex-1 overflow-y-auto space-y-4 pb-8"> 
+          <div className="p-4 flex-1 space-y-4 pb-8 md:overflow-y-auto md:min-h-0"> 
             
             <div className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-200 dark:border-blue-800 shadow-sm">
               <h2 className="text-[11px] font-bold text-blue-800 dark:text-blue-400 uppercase tracking-wider mb-4">Dein Etikett (Design)</h2>

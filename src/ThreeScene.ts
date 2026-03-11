@@ -33,6 +33,8 @@ export class MockupScene {
     
     animationFrameId: number | null = null;
     
+    resizeObserver: ResizeObserver;
+    
     constructor(container: HTMLElement) {
         this.container = container;
         
@@ -49,6 +51,11 @@ export class MockupScene {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        
+        this.renderer.domElement.style.width = '100%';
+        this.renderer.domElement.style.height = '100%';
+        this.renderer.domElement.style.display = 'block';
+        
         container.appendChild(this.renderer.domElement);
         
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -102,7 +109,10 @@ export class MockupScene {
         this.animate = this.animate.bind(this);
         this.animate();
         
-        window.addEventListener('resize', this.handleResize.bind(this));
+        this.resizeObserver = new ResizeObserver(() => {
+            this.handleResize();
+        });
+        this.resizeObserver.observe(this.container);
     }
     
     createCanGroup() {
@@ -389,6 +399,7 @@ export class MockupScene {
         if (!this.container) return;
         const width = this.container.clientWidth;
         const height = this.container.clientHeight;
+        if (width === 0 || height === 0) return;
         this.renderer.setSize(width, height);
         this.camera.aspect = width / height;
         this.camera.updateProjectionMatrix();
@@ -404,7 +415,7 @@ export class MockupScene {
         if (this.animationFrameId !== null) {
             cancelAnimationFrame(this.animationFrameId);
         }
-        window.removeEventListener('resize', this.handleResize);
+        this.resizeObserver.disconnect();
         this.renderer.dispose();
         this.container.innerHTML = '';
     }
