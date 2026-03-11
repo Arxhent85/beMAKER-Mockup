@@ -10,7 +10,7 @@ export class MockupScene {
     controls: OrbitControls;
     
     bodyMat: THREE.MeshStandardMaterial;
-    lidMat: THREE.MeshStandardMaterial;
+    lidMat: THREE.MeshPhysicalMaterial;
     labelMat: THREE.MeshStandardMaterial;
     
     uvCanvas: HTMLCanvasElement;
@@ -75,7 +75,16 @@ export class MockupScene {
         this.scene.add(fillLight);
         
         this.bodyMat = new THREE.MeshStandardMaterial({ color: 0xa3a3a3, metalness: 0.4, roughness: 0.25, side: THREE.DoubleSide });
-        this.lidMat = new THREE.MeshStandardMaterial({ color: 0x000000, metalness: 0.1, roughness: 0.4, side: THREE.DoubleSide });
+        this.lidMat = new THREE.MeshPhysicalMaterial({ 
+            color: 0x000000, 
+            metalness: 0.1, 
+            roughness: 0.4, 
+            side: THREE.DoubleSide,
+            transmission: 0, // Default opaque
+            ior: 1.5, // Index of refraction for plastic
+            thickness: 2.0, // Thickness of the plastic
+            transparent: true
+        });
         
         this.uvCanvas = document.createElement('canvas');
         this.uvCanvas.width = 4096;

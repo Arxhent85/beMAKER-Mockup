@@ -20,6 +20,7 @@ export default function App() {
   const [colorLid, setColorLid] = useState('#000000');
   const [sliderMetalness, setSliderMetalness] = useState(0.4);
   const [sliderLidGloss, setSliderLidGloss] = useState(0.6);
+  const [sliderLidTransparency, setSliderLidTransparency] = useState(0);
   
   const [decalScale, setDecalScale] = useState(0.95);
   const [decalX, setDecalX] = useState(0.5);
@@ -71,6 +72,8 @@ export default function App() {
     scene.lidMat.color.set(colorLid);
     scene.bodyMat.metalness = sliderMetalness;
     scene.lidMat.roughness = 1.0 - sliderLidGloss;
+    scene.lidMat.transmission = sliderLidTransparency;
+    scene.lidMat.transparent = sliderLidTransparency > 0;
     
     scene.uploadedImage = uploadedImage;
     scene.uploadedFilename = uploadedFilename;
@@ -87,7 +90,7 @@ export default function App() {
     });
   }, [
     isDark, currentModelType, currentLayoutMode, dimDiam, dimHeight, dimLidheight, dimNozzleWidth, showLid,
-    colorBody, colorLid, sliderMetalness, sliderLidGloss, decalScale, decalX, decalY, uploadedImage, uploadedFilename
+    colorBody, colorLid, sliderMetalness, sliderLidGloss, sliderLidTransparency, decalScale, decalX, decalY, uploadedImage, uploadedFilename
   ]);
 
   const handleModelTypeChange = (type: 'can' | 'cartridge') => {
@@ -435,6 +438,12 @@ export default function App() {
                     <label>Aufsatz-Glanz (Matt &rarr; Lack)</label>
                   </div>
                   <input type="range" min="0" max="1" step="0.05" value={sliderLidGloss} onChange={e => setSliderLidGloss(parseFloat(e.target.value))} />
+                </div>
+                <div>
+                  <div className="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    <label>Aufsatz-Transparenz (Massiv &rarr; Glas)</label>
+                  </div>
+                  <input type="range" min="0" max="1" step="0.05" value={sliderLidTransparency} onChange={e => setSliderLidTransparency(parseFloat(e.target.value))} />
                 </div>
               </div>
             </div>
