@@ -127,12 +127,13 @@ export class MockupScene {
     
     createCanGroup() {
         const geoCylinder = new THREE.CylinderGeometry(1, 1, 1, 64);
+        const geoCylinderOpen = new THREE.CylinderGeometry(1, 1, 1, 64, 1, true);
         const geoTorus = new THREE.TorusGeometry(1, 0.05, 16, 64);
         const geoDome = new THREE.SphereGeometry(1, 64, 32, 0, Math.PI*2, 0, Math.PI/2);
         
         const group = new THREE.Group();
         const meshBody = new THREE.Mesh(geoCylinder, this.bodyMat); meshBody.name = "body";
-        const meshLabel = new THREE.Mesh(geoCylinder, this.labelMat); meshLabel.name = "label"; meshLabel.visible = false;
+        const meshLabel = new THREE.Mesh(geoCylinderOpen, this.labelMat); meshLabel.name = "label"; meshLabel.visible = false;
         const meshRimBottom = new THREE.Mesh(geoTorus, this.bodyMat); meshRimBottom.name = "rimBottom"; meshRimBottom.rotation.x = Math.PI / 2;
         const meshRimTop = new THREE.Mesh(geoTorus, this.bodyMat); meshRimTop.name = "rimTop"; meshRimTop.rotation.x = Math.PI / 2;
         const meshDome = new THREE.Mesh(geoDome, this.bodyMat); meshDome.name = "dome"; meshDome.scale.y = 0.4;
