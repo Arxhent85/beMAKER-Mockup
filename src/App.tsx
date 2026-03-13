@@ -14,13 +14,18 @@ export default function App() {
   const [dimHeight, setDimHeight] = useState(145);
   const [dimLidheight, setDimLidheight] = useState(45);
   const [dimNozzleWidth, setDimNozzleWidth] = useState(23);
+  const [dimNozzleScale, setDimNozzleScale] = useState(2.0);
   const [showLid, setShowLid] = useState(true);
   
   const [colorBody, setColorBody] = useState('#a3a3a3');
-  const [colorLid, setColorLid] = useState('#000000');
+  const [colorDome, setColorDome] = useState('#ff3b3b');
+  const [colorValve, setColorValve] = useState('#ffffff');
+  const [colorLid, setColorLid] = useState('#ffffff');
   const [sliderMetalness, setSliderMetalness] = useState(0.4);
-  const [sliderLidGloss, setSliderLidGloss] = useState(0.6);
-  const [sliderLidTransparency, setSliderLidTransparency] = useState(0);
+  const [sliderLidGloss, setSliderLidGloss] = useState(0.9);
+  const [sliderLidTransparency, setSliderLidTransparency] = useState(0.8);
+  const [lightingIntensity, setLightingIntensity] = useState(1.0);
+  const [colorSaturation, setColorSaturation] = useState(1.0);
   
   const [decalScale, setDecalScale] = useState(0.95);
   const [decalX, setDecalX] = useState(0.5);
@@ -69,6 +74,8 @@ export default function App() {
     scene.currentLayoutMode = currentLayoutMode;
     
     scene.bodyMat.color.set(colorBody);
+    scene.domeMat.color.set(colorDome);
+    scene.valveMat.color.set(colorValve);
     scene.lidMat.color.set(colorLid);
     scene.bodyMat.metalness = sliderMetalness;
     scene.lidMat.roughness = 1.0 - sliderLidGloss;
@@ -78,6 +85,9 @@ export default function App() {
     scene.uploadedImage = uploadedImage;
     scene.uploadedFilename = uploadedFilename;
     
+    scene.setLightingIntensity(lightingIntensity);
+    scene.setColorSaturation(colorSaturation);
+    
     scene.updateDimensions({
       d_mm: dimDiam,
       h_mm: dimHeight,
@@ -86,11 +96,12 @@ export default function App() {
       showLid,
       wrapPercent: decalScale,
       rotX: decalX,
-      posY: decalY
+      posY: decalY,
+      nozzleScale: dimNozzleScale
     });
   }, [
     isDark, currentModelType, currentLayoutMode, dimDiam, dimHeight, dimLidheight, dimNozzleWidth, showLid,
-    colorBody, colorLid, sliderMetalness, sliderLidGloss, sliderLidTransparency, decalScale, decalX, decalY, uploadedImage, uploadedFilename
+    colorBody, colorDome, colorValve, colorLid, sliderMetalness, sliderLidGloss, sliderLidTransparency, decalScale, decalX, decalY, uploadedImage, uploadedFilename, dimNozzleScale, lightingIntensity, colorSaturation
   ]);
 
   const handleModelTypeChange = (type: 'can' | 'cartridge') => {
@@ -100,9 +111,10 @@ export default function App() {
       setDimHeight(145);
       setDimLidheight(45);
       setColorBody('#a3a3a3');
-      setColorLid('#000000');
+      setColorLid('#ffffff');
       setSliderMetalness(0.4);
-      setSliderLidGloss(0.6);
+      setSliderLidGloss(0.9);
+      setDimNozzleScale(2.0);
     } else {
       setDimDiam(48);
       setDimHeight(215);
@@ -407,6 +419,16 @@ export default function App() {
                     <input type="range" min="10" max="50" step="1" value={dimNozzleWidth} onChange={e => setDimNozzleWidth(parseInt(e.target.value))} />
                   </div>
                 )}
+                
+                {currentModelType === 'can' && (
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-700">
+                    <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                      <label>Düsengröße (Skalierung)</label>
+                      <span className="font-bold text-slate-700 dark:text-slate-200">{Math.round(dimNozzleScale * 100)}%</span>
+                    </div>
+                    <input type="range" min="0.5" max="4.0" step="0.05" value={dimNozzleScale} onChange={e => setDimNozzleScale(parseFloat(e.target.value))} />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -424,6 +446,18 @@ export default function App() {
                   <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Aufsatzfarbe</label>
                   <input type="color" value={colorLid} onChange={e => setColorLid(e.target.value)} className="w-full h-10" />
                 </div>
+                {currentModelType === 'can' && (
+                  <>
+                    <div>
+                      <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Kuppelfarbe</label>
+                      <input type="color" value={colorDome} onChange={e => setColorDome(e.target.value)} className="w-full h-10" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Düsenfarbe</label>
+                      <input type="color" value={colorValve} onChange={e => setColorValve(e.target.value)} className="w-full h-10" />
+                    </div>
+                  </>
+                )}
               </div>
               
               <div className="space-y-5 pt-3 border-t border-slate-100 dark:border-slate-700">
@@ -444,6 +478,28 @@ export default function App() {
                     <label>Aufsatz-Transparenz (Massiv &rarr; Glas)</label>
                   </div>
                   <input type="range" min="0" max="1" step="0.05" value={sliderLidTransparency} onChange={e => setSliderLidTransparency(parseFloat(e.target.value))} />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider m-0">Beleuchtung & Sättigung</h2>
+              </div>
+              <div className="space-y-5">
+                <div>
+                  <div className="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    <label>Beleuchtung (Dunkel &rarr; Hell)</label>
+                    <span className="font-bold text-slate-700 dark:text-slate-200">{Math.round(lightingIntensity * 100)}%</span>
+                  </div>
+                  <input type="range" min="0.2" max="2.0" step="0.05" value={lightingIntensity} onChange={e => setLightingIntensity(parseFloat(e.target.value))} />
+                </div>
+                <div>
+                  <div className="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    <label>Farbsättigung (Grau &rarr; Bunt)</label>
+                    <span className="font-bold text-slate-700 dark:text-slate-200">{Math.round(colorSaturation * 100)}%</span>
+                  </div>
+                  <input type="range" min="0" max="2.0" step="0.05" value={colorSaturation} onChange={e => setColorSaturation(parseFloat(e.target.value))} />
                 </div>
               </div>
             </div>

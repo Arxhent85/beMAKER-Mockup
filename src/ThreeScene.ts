@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three-stdlib';
 import { GLTFExporter } from 'three-stdlib';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 export class MockupScene {
     container: HTMLElement;
@@ -12,6 +13,8 @@ export class MockupScene {
     bodyMat: THREE.MeshStandardMaterial;
     lidMat: THREE.MeshPhysicalMaterial;
     labelMat: THREE.MeshStandardMaterial;
+    domeMat: THREE.MeshStandardMaterial;
+    valveMat: THREE.MeshStandardMaterial;
     
     uvCanvas: HTMLCanvasElement;
     uvCtx: CanvasRenderingContext2D;
@@ -51,7 +54,11 @@ export class MockupScene {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.62; // Reduced by 10% from 1.8
+        this.renderer.toneMappingExposure = 1.45; // Reduced by 10% from 1.62
+        
+        const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+        pmremGenerator.compileEquirectangularShader();
+        this.scene.environment = pmremGenerator.fromScene(new RoomEnvironment()).texture;
         
         this.renderer.domElement.style.width = '100%';
         this.renderer.domElement.style.height = '100%';
@@ -64,26 +71,30 @@ export class MockupScene {
         this.controls.dampingFactor = 0.05;
         this.controls.target.set(0, 0, 0);
         
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.35); // Reduced by 10% from 1.5
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); // Reduced by 10% from 1.35
         this.scene.add(ambientLight);
-        const mainLight = new THREE.DirectionalLight(0xffffff, 2.16); // Reduced by 10% from 2.4
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.94); // Reduced by 10% from 2.16
         mainLight.position.set(10, 20, 15);
         mainLight.castShadow = true;
         this.scene.add(mainLight);
-        const fillLight = new THREE.DirectionalLight(0xe2e8f0, 1.35); // Reduced by 10% from 1.5
+        const fillLight = new THREE.DirectionalLight(0xe2e8f0, 1.2); // Reduced by 10% from 1.35
         fillLight.position.set(-15, 5, -10);
         this.scene.add(fillLight);
         
         this.bodyMat = new THREE.MeshStandardMaterial({ color: 0xa3a3a3, metalness: 0.4, roughness: 0.25, side: THREE.DoubleSide });
+        this.domeMat = new THREE.MeshStandardMaterial({ color: 0xff3b3b, metalness: 0.2, roughness: 0.3, side: THREE.DoubleSide });
+        this.valveMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.1, roughness: 0.5, transparent: false, opacity: 1.0 });
         this.lidMat = new THREE.MeshPhysicalMaterial({ 
-            color: 0x000000, 
-            metalness: 0.1, 
-            roughness: 0.4, 
+            color: 0xffffff, 
+            metalness: 0.0, 
+            roughness: 0.1, 
             side: THREE.DoubleSide,
             transmission: 0, // Default opaque
             ior: 1.5, // Index of refraction for plastic
-            thickness: 2.0, // Thickness of the plastic
-            transparent: true
+            thickness: 0.05, // Thickness of the plastic
+            transparent: true,
+            opacity: 1.0,
+            depthWrite: false
         });
         
         this.uvCanvas = document.createElement('canvas');
@@ -136,10 +147,69 @@ export class MockupScene {
         const meshLabel = new THREE.Mesh(geoCylinderOpen, this.labelMat); meshLabel.name = "label"; meshLabel.visible = false;
         const meshRimBottom = new THREE.Mesh(geoTorus, this.bodyMat); meshRimBottom.name = "rimBottom"; meshRimBottom.rotation.x = Math.PI / 2;
         const meshRimTop = new THREE.Mesh(geoTorus, this.bodyMat); meshRimTop.name = "rimTop"; meshRimTop.rotation.x = Math.PI / 2;
-        const meshDome = new THREE.Mesh(geoDome, this.bodyMat); meshDome.name = "dome"; meshDome.scale.y = 0.4;
-        const meshValve = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.4, 32), this.bodyMat); meshValve.name = "valve";
+        const meshDome = new THREE.Mesh(geoDome, this.domeMat); meshDome.name = "dome"; meshDome.scale.y = 0.4;
+        
+        const valveGroup = new THREE.Group();
+        valveGroup.name = "valve";
+        
+        const nozzleGroup = new THREE.Group();
+        nozzleGroup.name = "nozzleGroup";
+
+        // Metallic valve cup (crimped ring + inner part)
+        const cupPoints = [];
+        cupPoints.push(new THREE.Vector2(0.15, 0.02)); // center hole
+        cupPoints.push(new THREE.Vector2(0.30, 0.02)); // inner flat bottom
+        cupPoints.push(new THREE.Vector2(0.35, 0.12)); // slope up
+        cupPoints.push(new THREE.Vector2(0.46, 0.12)); // top flat rim
+        cupPoints.push(new THREE.Vector2(0.48, 0.10)); // outer top bevel
+        cupPoints.push(new THREE.Vector2(0.48, 0.0));  // outer vertical wall
+        const valveCup = new THREE.Mesh(new THREE.LatheGeometry(cupPoints, 64), this.bodyMat);
+
+        // Plastic nozzle
+        const nozzleBase = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.15, 32), this.valveMat);
+        nozzleBase.position.y = 0.06 + 0.075; // 0.135
+        
+        // Nozzle head (with concave top)
+        const nozzlePoints = [];
+        nozzlePoints.push(new THREE.Vector2(0.0, 0.23)); // center of top (indented)
+        nozzlePoints.push(new THREE.Vector2(0.15, 0.24)); // curve up
+        nozzlePoints.push(new THREE.Vector2(0.25, 0.28)); // outer rim
+        nozzlePoints.push(new THREE.Vector2(0.28, 0.25)); // bevel down
+        nozzlePoints.push(new THREE.Vector2(0.28, 0.0)); // bottom of head
+        const nozzleHead = new THREE.Mesh(new THREE.LatheGeometry(nozzlePoints, 64), this.valveMat);
+        nozzleHead.position.y = 0.21; // adjust position so it sits on nozzleBase
+        
+        // Ridges on top of nozzle
+        const ridgesGroup = new THREE.Group();
+        for (let i = -4; i <= 4; i++) {
+            const zPos = i * 0.025;
+            // Calculate width of the ridge based on circular shape (radius ~0.2)
+            const width = Math.sqrt(Math.max(0, 0.2*0.2 - zPos*zPos)) * 2 * 0.8; 
+            const ridge = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, width, 8), this.valveMat);
+            ridge.rotation.z = Math.PI / 2;
+            const yPos = 0.235 + Math.abs(zPos) * 0.15; // match the concave shape
+            ridge.position.set(0, yPos, zPos);
+            ridgesGroup.add(ridge);
+        }
+        nozzleHead.add(ridgesGroup);
+
+        // Spray hole (black dot) - larger and with an outer ring
+        const dotGroup = new THREE.Group();
+        const dotOuter = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.02, 32), new THREE.MeshBasicMaterial({ color: 0x111111 }));
+        const dotInner = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 16), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+        dotOuter.rotation.x = Math.PI / 2;
+        dotInner.rotation.x = Math.PI / 2;
+        dotInner.position.z = 0.01;
+        dotGroup.add(dotOuter, dotInner);
+        dotGroup.position.set(0, 0.125, 0.27); // relative to nozzleHead
+        nozzleHead.add(dotGroup);
+        
+        nozzleGroup.add(valveCup, nozzleBase, nozzleHead);
+        
+        valveGroup.add(nozzleGroup);
+        
         const meshLid = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 64), this.lidMat); meshLid.name = "lid";
-        group.add(meshBody, meshLabel, meshRimBottom, meshRimTop, meshDome, meshValve, meshLid);
+        group.add(meshBody, meshLabel, meshRimBottom, meshRimTop, meshDome, valveGroup, meshLid);
         return group;
     }
     
@@ -321,7 +391,7 @@ export class MockupScene {
     }
     
     updateDimensions(params: any) {
-        const { d_mm, h_mm, l_mm, nw_mm, showLid, wrapPercent, rotX, posY } = params;
+        const { d_mm, h_mm, l_mm, nw_mm, showLid, wrapPercent, rotX, posY, nozzleScale = 1.0 } = params;
         
         const r = (d_mm / 2) / 10;
         const h = h_mm / 10;
@@ -337,6 +407,12 @@ export class MockupScene {
             activeObj1 = this.can1; activeObj2 = this.can2;
             this.applyCanDims(this.can1, r, h, l, showLid);
             this.applyCanDims(this.can2, r, h, l, showLid);
+            
+            const nozzleGroup1 = this.can1.getObjectByName("nozzleGroup");
+            if (nozzleGroup1) nozzleGroup1.scale.set(nozzleScale, nozzleScale, nozzleScale);
+            const nozzleGroup2 = this.can2.getObjectByName("nozzleGroup");
+            if (nozzleGroup2) nozzleGroup2.scale.set(nozzleScale, nozzleScale, nozzleScale);
+            
             totalHeight = h + (showLid ? l : 0);
         } else {
             activeObj1 = this.cart1; activeObj2 = this.cart2;
@@ -431,6 +507,14 @@ export class MockupScene {
         this.renderer.render(this.scene, this.camera);
     }
     
+    setLightingIntensity(intensity: number) {
+        this.renderer.toneMappingExposure = 1.45 * intensity;
+    }
+
+    setColorSaturation(saturation: number) {
+        this.renderer.domElement.style.filter = `saturate(${saturation})`;
+    }
+
     destroy() {
         if (this.animationFrameId !== null) {
             cancelAnimationFrame(this.animationFrameId);
@@ -492,9 +576,20 @@ export class MockupScene {
         const width = this.renderer.domElement.width;
         const height = this.renderer.domElement.height;
         
+        // Apply CSS filter (saturation) to exported image
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+        const tempCtx = tempCanvas.getContext('2d');
+        if (tempCtx) {
+            tempCtx.filter = this.renderer.domElement.style.filter || 'none';
+            tempCtx.drawImage(this.renderer.domElement, 0, 0);
+        }
+        const sourceCanvas = tempCtx ? tempCanvas : this.renderer.domElement;
+        
         let dataUrl = '';
         if (format === 'svg') {
-            const pngData = this.renderer.domElement.toDataURL('image/png', 1.0);
+            const pngData = sourceCanvas.toDataURL('image/png', 1.0);
             const svgContent = `
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
                     <image href="${pngData}" width="${width}" height="${height}" />
@@ -506,14 +601,14 @@ export class MockupScene {
             const { jsPDF } = (window as any).jspdf;
             const orientation = width > height ? 'l' : 'p';
             const pdf = new jsPDF(orientation, 'pt', [width, height]);
-            const pngData = this.renderer.domElement.toDataURL(isTransparent ? 'image/png' : 'image/jpeg', 1.0);
+            const pngData = sourceCanvas.toDataURL(isTransparent ? 'image/png' : 'image/jpeg', 1.0);
             pdf.addImage(pngData, isTransparent ? 'PNG' : 'JPEG', 0, 0, width, height);
             const blob = pdf.output('blob');
             dataUrl = URL.createObjectURL(blob);
         } else if (format === 'jpg') {
-            dataUrl = this.renderer.domElement.toDataURL('image/jpeg', 0.95);
+            dataUrl = sourceCanvas.toDataURL('image/jpeg', 0.95);
         } else {
-            dataUrl = this.renderer.domElement.toDataURL('image/png', 1.0);
+            dataUrl = sourceCanvas.toDataURL('image/png', 1.0);
         }
 
         this.scene.background = oldBackground;
