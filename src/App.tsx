@@ -16,6 +16,7 @@ export default function App() {
   const [dimNozzleWidth, setDimNozzleWidth] = useState(23);
   const [dimNozzleScale, setDimNozzleScale] = useState(2.0);
   const [showLid, setShowLid] = useState(true);
+  const [showNozzle, setShowNozzle] = useState(true);
   
   const [colorBody, setColorBody] = useState('#a3a3a3');
   const [colorDome, setColorDome] = useState('#ff3b3b');
@@ -80,7 +81,14 @@ export default function App() {
     scene.bodyMat.metalness = sliderMetalness;
     scene.lidMat.roughness = 1.0 - sliderLidGloss;
     scene.lidMat.transmission = sliderLidTransparency;
+    scene.lidMat.opacity = 1.0 - (sliderLidTransparency * 0.8); // 1.0 at 0, 0.2 at 1.0
+    scene.lidMat.envMapIntensity = 1.0 + (sliderLidTransparency * 2.0); // 1.0 at 0, 3.0 at 1.0
     scene.lidMat.transparent = sliderLidTransparency > 0;
+    
+    const sprayHole1 = scene.can1.getObjectByName("sprayHole");
+    if (sprayHole1) sprayHole1.visible = sliderLidTransparency > 0;
+    const sprayHole2 = scene.can2.getObjectByName("sprayHole");
+    if (sprayHole2) sprayHole2.visible = sliderLidTransparency > 0;
     
     scene.uploadedImage = uploadedImage;
     scene.uploadedFilename = uploadedFilename;
@@ -94,13 +102,14 @@ export default function App() {
       l_mm: dimLidheight,
       nw_mm: dimNozzleWidth,
       showLid,
+      showNozzle,
       wrapPercent: decalScale,
       rotX: decalX,
       posY: decalY,
       nozzleScale: dimNozzleScale
     });
   }, [
-    isDark, currentModelType, currentLayoutMode, dimDiam, dimHeight, dimLidheight, dimNozzleWidth, showLid,
+    isDark, currentModelType, currentLayoutMode, dimDiam, dimHeight, dimLidheight, dimNozzleWidth, showLid, showNozzle,
     colorBody, colorDome, colorValve, colorLid, sliderMetalness, sliderLidGloss, sliderLidTransparency, decalScale, decalX, decalY, uploadedImage, uploadedFilename, dimNozzleScale, lightingIntensity, colorSaturation
   ]);
 
@@ -399,9 +408,13 @@ export default function App() {
                   <input type="range" min="50" max="300" step="1" value={dimHeight} onChange={e => setDimHeight(parseInt(e.target.value))} /> 
                 </div>
                 <div className="pt-3 border-t border-slate-100 dark:border-slate-700">
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-xs text-slate-500 dark:text-slate-400 font-bold">Deckel / Düse anzeigen</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs text-slate-500 dark:text-slate-400 font-bold">Deckel anzeigen</label>
                     <input type="checkbox" checked={showLid} onChange={e => setShowLid(e.target.checked)} className="w-5 h-5 accent-blue-600" />
+                  </div>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-xs text-slate-500 dark:text-slate-400 font-bold">Düse anzeigen</label>
+                    <input type="checkbox" checked={showNozzle} onChange={e => setShowNozzle(e.target.checked)} className="w-5 h-5 accent-blue-600" />
                   </div>
                   <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
                     <label>Aufsatzhöhe (Deckel/Düse)</label>

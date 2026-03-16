@@ -55,6 +55,7 @@ export class MockupScene {
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.45; // Reduced by 10% from 1.62
+        this.renderer.localClippingEnabled = true; // Enable local clipping
         
         const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
         pmremGenerator.compileEquirectangularShader();
@@ -94,7 +95,8 @@ export class MockupScene {
             thickness: 0.05, // Thickness of the plastic
             transparent: true,
             opacity: 1.0,
-            depthWrite: false
+            depthWrite: false,
+            envMapIntensity: 2.0 // Increased for better reflections
         });
         
         this.uvCanvas = document.createElement('canvas');
@@ -164,10 +166,11 @@ export class MockupScene {
         cupPoints.push(new THREE.Vector2(0.48, 0.10)); // outer top bevel
         cupPoints.push(new THREE.Vector2(0.48, 0.0));  // outer vertical wall
         const valveCup = new THREE.Mesh(new THREE.LatheGeometry(cupPoints, 64), this.bodyMat);
+        valveCup.position.y = -0.02; // Move down to sit directly on the dome
 
         // Plastic nozzle
         const nozzleBase = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.15, 32), this.valveMat);
-        nozzleBase.position.y = 0.06 + 0.075; // 0.135
+        nozzleBase.position.y = 0.06 + 0.075 - 0.02; // Adjusted for new valveCup position
         
         // Nozzle head (with concave top)
         const nozzlePoints = [];
@@ -177,7 +180,7 @@ export class MockupScene {
         nozzlePoints.push(new THREE.Vector2(0.28, 0.25)); // bevel down
         nozzlePoints.push(new THREE.Vector2(0.28, 0.0)); // bottom of head
         const nozzleHead = new THREE.Mesh(new THREE.LatheGeometry(nozzlePoints, 64), this.valveMat);
-        nozzleHead.position.y = 0.21; // adjust position so it sits on nozzleBase
+        nozzleHead.position.y = 0.21 - 0.02; // Adjusted for new valveCup position
         
         // Ridges on top of nozzle
         const ridgesGroup = new THREE.Group();
@@ -193,16 +196,24 @@ export class MockupScene {
         }
         nozzleHead.add(ridgesGroup);
 
-        // Spray hole (black dot) - larger and with an outer ring
+        // Spray hole (black dot) - circular and only visible from front
         const dotGroup = new THREE.Group();
-        const dotOuter = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.02, 32), new THREE.MeshBasicMaterial({ color: 0x111111 }));
-        const dotInner = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 16), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-        dotOuter.rotation.x = Math.PI / 2;
-        dotInner.rotation.x = Math.PI / 2;
-        dotInner.position.z = 0.01;
-        dotGroup.add(dotOuter, dotInner);
-        dotGroup.position.set(0, 0.125, 0.27); // relative to nozzleHead
+        dotGroup.name = "sprayHole";
+        // Use SphereGeometry for a perfectly round hole
+        const dot = new THREE.Mesh(new THREE.SphereGeometry(0.05, 32, 32), new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.5 }));
+        dot.scale.z = 0.2; // Flatten it slightly
+        dotGroup.add(dot);
+        dotGroup.position.set(0, 0.05, 0.25); // relative to nozzleHead, adjusted position
         nozzleHead.add(dotGroup);
+        
+        // Add a clipping plane to the spray hole group so it's only visible from the front
+        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -0.24);
+        dotGroup.onBeforeRender = (renderer, scene, camera, geometry, material, group) => {
+            renderer.clippingPlanes = [plane];
+        };
+        dotGroup.onAfterRender = (renderer) => {
+            renderer.clippingPlanes = [];
+        };
         
         nozzleGroup.add(valveCup, nozzleBase, nozzleHead);
         
@@ -281,13 +292,14 @@ export class MockupScene {
         return group;
     }
     
-    applyCanDims(group: THREE.Group, r: number, h: number, l: number, showLid: boolean) {
+    applyCanDims(group: THREE.Group, r: number, h: number, l: number, showLid: boolean, showNozzle: boolean) {
         group.getObjectByName("body")!.scale.set(r, h, r); group.getObjectByName("body")!.position.y = h / 2;
         group.getObjectByName("label")!.scale.set(r * 1.005, h, r * 1.005); group.getObjectByName("label")!.position.y = h / 2;
         group.getObjectByName("rimBottom")!.scale.set(r, r, r); group.getObjectByName("rimBottom")!.position.y = 0;
         group.getObjectByName("rimTop")!.scale.set(r, r, r); group.getObjectByName("rimTop")!.position.y = h;
         group.getObjectByName("dome")!.scale.set(r * 0.95, r * 0.4, r * 0.95); group.getObjectByName("dome")!.position.y = h;
         group.getObjectByName("valve")!.position.y = h + (r*0.4);
+        group.getObjectByName("valve")!.visible = showNozzle;
         group.getObjectByName("lid")!.scale.set(r, l, r); group.getObjectByName("lid")!.position.y = h + (l / 2);
         group.getObjectByName("lid")!.visible = showLid;
     }
@@ -391,7 +403,7 @@ export class MockupScene {
     }
     
     updateDimensions(params: any) {
-        const { d_mm, h_mm, l_mm, nw_mm, showLid, wrapPercent, rotX, posY, nozzleScale = 1.0 } = params;
+        const { d_mm, h_mm, l_mm, nw_mm, showLid, showNozzle, wrapPercent, rotX, posY, nozzleScale = 1.0 } = params;
         
         const r = (d_mm / 2) / 10;
         const h = h_mm / 10;
@@ -405,8 +417,8 @@ export class MockupScene {
 
         if (this.currentModelType === 'can') {
             activeObj1 = this.can1; activeObj2 = this.can2;
-            this.applyCanDims(this.can1, r, h, l, showLid);
-            this.applyCanDims(this.can2, r, h, l, showLid);
+            this.applyCanDims(this.can1, r, h, l, showLid, showNozzle);
+            this.applyCanDims(this.can2, r, h, l, showLid, showNozzle);
             
             const nozzleGroup1 = this.can1.getObjectByName("nozzleGroup");
             if (nozzleGroup1) nozzleGroup1.scale.set(nozzleScale, nozzleScale, nozzleScale);
