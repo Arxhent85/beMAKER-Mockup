@@ -74,16 +74,16 @@ export class MockupScene {
         
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); // Reduced by 10% from 1.35
         this.scene.add(ambientLight);
-        const mainLight = new THREE.DirectionalLight(0xffffff, 1.94); // Reduced by 10% from 2.16
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.7); // Reduced intensity
         mainLight.position.set(10, 20, 15);
         mainLight.castShadow = true;
         this.scene.add(mainLight);
-        const fillLight = new THREE.DirectionalLight(0xe2e8f0, 1.2); // Reduced by 10% from 1.35
+        const fillLight = new THREE.DirectionalLight(0xe2e8f0, 1.0); // Reduced intensity
         fillLight.position.set(-15, 5, -10);
         this.scene.add(fillLight);
         
         this.bodyMat = new THREE.MeshStandardMaterial({ color: 0xa3a3a3, metalness: 0.4, roughness: 0.25, side: THREE.DoubleSide });
-        this.domeMat = new THREE.MeshStandardMaterial({ color: 0xff3b3b, metalness: 0.2, roughness: 0.3, side: THREE.DoubleSide });
+        this.domeMat = new THREE.MeshStandardMaterial({ color: 0xff0000, metalness: 0.2, roughness: 0.3, side: THREE.DoubleSide }); // Deeper red
         this.valveMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.1, roughness: 0.5, transparent: false, opacity: 1.0 });
         this.lidMat = new THREE.MeshPhysicalMaterial({ 
             color: 0xffffff, 
@@ -93,10 +93,10 @@ export class MockupScene {
             transmission: 0, // Default opaque
             ior: 1.5, // Index of refraction for plastic
             thickness: 0.05, // Thickness of the plastic
-            transparent: true,
+            transparent: false, // Default opaque
             opacity: 1.0,
-            depthWrite: false,
-            envMapIntensity: 2.0 // Increased for better reflections
+            depthWrite: true, // Default opaque
+            envMapIntensity: 1.0 // Default opaque
         });
         
         this.uvCanvas = document.createElement('canvas');

@@ -82,8 +82,9 @@ export default function App() {
     scene.lidMat.roughness = 1.0 - sliderLidGloss;
     scene.lidMat.transmission = sliderLidTransparency;
     scene.lidMat.opacity = 1.0 - (sliderLidTransparency * 0.8); // 1.0 at 0, 0.2 at 1.0
-    scene.lidMat.envMapIntensity = 1.0 + (sliderLidTransparency * 2.0); // 1.0 at 0, 3.0 at 1.0
+    scene.lidMat.envMapIntensity = 1.5 + (sliderLidTransparency * 1.5); // 1.5 at 0, 3.0 at 1.0
     scene.lidMat.transparent = sliderLidTransparency > 0;
+    scene.lidMat.depthWrite = sliderLidTransparency === 0; // Only write depth when opaque
     
     const sprayHole1 = scene.can1.getObjectByName("sprayHole");
     if (sprayHole1) sprayHole1.visible = sliderLidTransparency > 0;
