@@ -25,6 +25,7 @@ export default function App() {
   const [sliderMetalness, setSliderMetalness] = useState(0.4);
   const [sliderLidGloss, setSliderLidGloss] = useState(0.9);
   const [sliderLidTransparency, setSliderLidTransparency] = useState(0.8);
+  const [sliderValveTransparency, setSliderValveTransparency] = useState(0.0);
   const [lightingIntensity, setLightingIntensity] = useState(1.0);
   const [colorSaturation, setColorSaturation] = useState(1.0);
   
@@ -36,6 +37,9 @@ export default function App() {
   const [uploadedFilename, setUploadedFilename] = useState('Mockup');
   const [uploadText, setUploadText] = useState('PDF / Bild hochladen');
   const [isUploading, setIsUploading] = useState(false);
+  
+  const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null);
+  const [bgUploadText, setBgUploadText] = useState('Hintergrundbild hochladen');
   
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -86,13 +90,15 @@ export default function App() {
     scene.lidMat.transparent = sliderLidTransparency > 0;
     scene.lidMat.depthWrite = sliderLidTransparency === 0; // Only write depth when opaque
     
-    const sprayHole1 = scene.can1.getObjectByName("sprayHole");
-    if (sprayHole1) sprayHole1.visible = sliderLidTransparency > 0;
-    const sprayHole2 = scene.can2.getObjectByName("sprayHole");
-    if (sprayHole2) sprayHole2.visible = sliderLidTransparency > 0;
+    scene.valveMat.transmission = sliderValveTransparency;
+    scene.valveMat.opacity = 1.0 - (sliderValveTransparency * 0.8);
+    scene.valveMat.envMapIntensity = 1.0 + (sliderValveTransparency * 2.0);
+    scene.valveMat.transparent = sliderValveTransparency > 0;
+    scene.valveMat.depthWrite = sliderValveTransparency === 0;
     
     scene.uploadedImage = uploadedImage;
     scene.uploadedFilename = uploadedFilename;
+    scene.backgroundImage = backgroundImage;
     
     scene.setLightingIntensity(lightingIntensity);
     scene.setColorSaturation(colorSaturation);
@@ -111,8 +117,27 @@ export default function App() {
     });
   }, [
     isDark, currentModelType, currentLayoutMode, dimDiam, dimHeight, dimLidheight, dimNozzleWidth, showLid, showNozzle,
-    colorBody, colorDome, colorValve, colorLid, sliderMetalness, sliderLidGloss, sliderLidTransparency, decalScale, decalX, decalY, uploadedImage, uploadedFilename, dimNozzleScale, lightingIntensity, colorSaturation
+    colorBody, colorDome, colorValve, colorLid, sliderMetalness, sliderLidGloss, sliderLidTransparency, sliderValveTransparency, decalScale, decalX, decalY, uploadedImage, uploadedFilename, backgroundImage, dimNozzleScale, lightingIntensity, colorSaturation
   ]);
+
+  const handleBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      setBackgroundImage(img);
+      setImgQuality('bg');
+      setBgUploadText("Bild geladen!");
+      setTimeout(() => setBgUploadText("Anderes Bild hochladen"), 2500);
+    };
+    img.onerror = () => {
+      setBgUploadText("Fehler beim Laden");
+      setTimeout(() => setBgUploadText("Hintergrundbild hochladen"), 2500);
+    };
+    img.src = url;
+  };
 
   const handleModelTypeChange = (type: 'can' | 'cartridge') => {
     setCurrentModelType(type);
@@ -233,7 +258,7 @@ export default function App() {
       try {
         const dataUrl = sceneRef.current!.exportImage(imgQuality, imgFormat, imgTransparent);
         
-        let suffix = imgQuality === '4k' ? '4K' : (imgQuality === '100' ? 'Standard' : 'Kompakt');
+        let suffix = imgQuality === '4k' ? '4K' : (imgQuality === 'bg' ? 'Original' : (imgQuality === '100' ? 'Standard' : 'Kompakt'));
         let bgSuffix = (imgTransparent && imgFormat !== 'jpg') ? 'Transparent' : 'MitHG';
         let layoutSuffix = currentLayoutMode === 'double' ? 'Doppel' : 'Einzeln';
         const filename = `${uploadedFilename}-${layoutSuffix}-${suffix}-${bgSuffix}.${imgFormat}`;
@@ -315,7 +340,11 @@ export default function App() {
           </div>
         )}
 
-        <div ref={containerRef} className="w-full h-full cursor-grab active:cursor-grabbing outline-none touch-none bg-gradient-to-b from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 transition-colors duration-500"></div>
+        {backgroundImage && (
+          <img src={backgroundImage.src} className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" alt="Background" />
+        )}
+
+        <div ref={containerRef} className={`w-full h-full cursor-grab active:cursor-grabbing outline-none touch-none relative z-10 transition-colors duration-500 ${backgroundImage ? 'bg-transparent' : 'bg-gradient-to-b from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900'}`}></div>
       </div>
 
       {/* SIDEBAR UI */}
@@ -373,6 +402,25 @@ export default function App() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div className="bg-slate-100 dark:bg-slate-800/80 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+              <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Hintergrund (Szene)</h2>
+              <label className="flex flex-col items-center justify-center w-full h-12 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg cursor-pointer bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors mb-2 relative overflow-hidden group shadow-sm">
+                <div className="flex items-center justify-center gap-2">
+                  <Upload size={16} className="text-slate-500 dark:text-slate-400" />
+                  <span className="text-xs text-slate-600 dark:text-slate-300 font-bold">{bgUploadText}</span>
+                </div>
+                <input type="file" className="hidden" accept="image/*" onChange={handleBgUpload} />
+              </label>
+              {backgroundImage && (
+                <button onClick={() => {
+                  setBackgroundImage(null);
+                  if (imgQuality === 'bg') setImgQuality('4k');
+                }} className="w-full py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 text-xs font-bold rounded transition-colors border border-red-200 dark:border-red-800/50">
+                  Hintergrund entfernen
+                </button>
+              )}
             </div>
 
             <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
@@ -493,6 +541,14 @@ export default function App() {
                   </div>
                   <input type="range" min="0" max="1" step="0.05" value={sliderLidTransparency} onChange={e => setSliderLidTransparency(parseFloat(e.target.value))} />
                 </div>
+                {currentModelType === 'can' && (
+                  <div>
+                    <div className="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                      <label>Düsen-Transparenz (Massiv &rarr; Glas)</label>
+                    </div>
+                    <input type="range" min="0" max="1" step="0.05" value={sliderValveTransparency} onChange={e => setSliderValveTransparency(parseFloat(e.target.value))} />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -538,15 +594,16 @@ export default function App() {
               <div className="flex justify-between items-center">
                 <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Qualität:</span>
                 <select value={imgQuality} onChange={e => setImgQuality(e.target.value)} className="text-xs border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-700 dark:text-white px-2 py-1 outline-none shadow-sm cursor-pointer">
+                  {backgroundImage && <option value="bg">Original (Hintergrund-Auflösung)</option>}
                   <option value="4k">4K (Ultra HD)</option>
                   <option value="100">Standard (Ansicht)</option>
                   <option value="50">Kompakt (ca. 1/2 Größe)</option>
                 </select>
               </div>
-              <div className={`flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-700/60 ${imgFormat === 'jpg' ? 'opacity-50' : ''}`}>
+              <div className={`flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-700/60 ${(imgFormat === 'jpg' || backgroundImage) ? 'opacity-50' : ''}`}>
                 <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Hintergrund:</span>
                 <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input type="checkbox" checked={imgFormat === 'jpg' ? false : imgTransparent} disabled={imgFormat === 'jpg'} onChange={e => setImgTransparent(e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
+                  <input type="checkbox" checked={(imgFormat === 'jpg' || backgroundImage) ? false : imgTransparent} disabled={imgFormat === 'jpg' || backgroundImage !== null} onChange={e => setImgTransparent(e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
                   <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Transparent</span>
                 </label>
               </div>

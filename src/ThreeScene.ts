@@ -32,6 +32,8 @@ export class MockupScene {
     uploadedImage: HTMLImageElement | null = null;
     uploadedFilename: string = 'Mockup';
     
+    backgroundImage: HTMLImageElement | null = null;
+    
     isDark: boolean = true;
     
     animationFrameId: number | null = null;
@@ -84,7 +86,19 @@ export class MockupScene {
         
         this.bodyMat = new THREE.MeshStandardMaterial({ color: 0xa3a3a3, metalness: 0.4, roughness: 0.25, side: THREE.DoubleSide });
         this.domeMat = new THREE.MeshStandardMaterial({ color: 0xff0000, metalness: 0.2, roughness: 0.3, side: THREE.DoubleSide }); // Deeper red
-        this.valveMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.1, roughness: 0.5, transparent: false, opacity: 1.0 });
+        this.valveMat = new THREE.MeshPhysicalMaterial({ 
+            color: 0xffffff, 
+            metalness: 0.1, 
+            roughness: 0.5, 
+            side: THREE.DoubleSide,
+            transmission: 0,
+            ior: 1.5,
+            thickness: 0.05,
+            transparent: false,
+            opacity: 1.0,
+            depthWrite: true,
+            envMapIntensity: 1.0
+        });
         this.lidMat = new THREE.MeshPhysicalMaterial({ 
             color: 0xffffff, 
             metalness: 0.0, 
@@ -203,7 +217,7 @@ export class MockupScene {
         const dot = new THREE.Mesh(new THREE.SphereGeometry(0.05, 32, 32), new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.5 }));
         dot.scale.z = 0.2; // Flatten it slightly
         dotGroup.add(dot);
-        dotGroup.position.set(0, 0.05, 0.25); // relative to nozzleHead, adjusted position
+        dotGroup.position.set(0, 0.05, 0.285); // relative to nozzleHead, moved to surface
         nozzleHead.add(dotGroup);
         
         // Add a clipping plane to the spray hole group so it's only visible from the front
@@ -565,6 +579,16 @@ export class MockupScene {
             hiResW = 4096;
             hiResH = Math.round(hiResW / aspect);
             tempPixelRatio = 1;
+        } else if (qualityMode === 'bg' && this.backgroundImage) {
+            const imgAspect = this.backgroundImage.width / this.backgroundImage.height;
+            if (aspect > imgAspect) {
+                hiResW = this.backgroundImage.width;
+                hiResH = Math.round(hiResW / aspect);
+            } else {
+                hiResH = this.backgroundImage.height;
+                hiResW = Math.round(hiResH * aspect);
+            }
+            tempPixelRatio = 1;
         } else if (qualityMode === '100') {
             hiResW = currentW;
             hiResH = currentH;
@@ -575,10 +599,15 @@ export class MockupScene {
             tempPixelRatio = 1;
         }
         
-        if (format === 'jpg') {
-            this.scene.background = isTransparent ? new THREE.Color('#ffffff') : new THREE.Color(this.isDark ? '#0f172a' : '#f1f5f9');
+        const hasBgImage = this.backgroundImage !== null;
+        const exportTransparent = isTransparent && !hasBgImage;
+        
+        if (hasBgImage) {
+            this.scene.background = null;
+        } else if (format === 'jpg') {
+            this.scene.background = exportTransparent ? new THREE.Color('#ffffff') : new THREE.Color(this.isDark ? '#0f172a' : '#f1f5f9');
         } else {
-            this.scene.background = isTransparent ? null : new THREE.Color(this.isDark ? '#0f172a' : '#f1f5f9');
+            this.scene.background = exportTransparent ? null : new THREE.Color(this.isDark ? '#0f172a' : '#f1f5f9');
         }
         
         this.renderer.setPixelRatio(tempPixelRatio);
@@ -588,12 +617,34 @@ export class MockupScene {
         const width = this.renderer.domElement.width;
         const height = this.renderer.domElement.height;
         
-        // Apply CSS filter (saturation) to exported image
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = width;
         tempCanvas.height = height;
         const tempCtx = tempCanvas.getContext('2d');
+        
         if (tempCtx) {
+            tempCtx.imageSmoothingEnabled = true;
+            tempCtx.imageSmoothingQuality = 'high';
+            
+            if (hasBgImage) {
+                const canvasAspect = width / height;
+                const imgAspect = this.backgroundImage!.width / this.backgroundImage!.height;
+                let drawW, drawH, drawX, drawY;
+                if (canvasAspect > imgAspect) {
+                    drawW = width;
+                    drawH = width / imgAspect;
+                    drawX = 0;
+                    drawY = (height - drawH) / 2;
+                } else {
+                    drawH = height;
+                    drawW = height * imgAspect;
+                    drawX = (width - drawW) / 2;
+                    drawY = 0;
+                }
+                tempCtx.drawImage(this.backgroundImage!, drawX, drawY, drawW, drawH);
+            }
+            
+            // Apply CSS filter (saturation) to exported image
             tempCtx.filter = this.renderer.domElement.style.filter || 'none';
             tempCtx.drawImage(this.renderer.domElement, 0, 0);
         }
