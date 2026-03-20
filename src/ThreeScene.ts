@@ -28,6 +28,7 @@ export class MockupScene {
     
     currentModelType: 'can' | 'cartridge' = 'can';
     currentLayoutMode: 'single' | 'double' = 'single';
+    lastLayoutMode: 'single' | 'double' | null = null;
     
     uploadedImage: HTMLImageElement | null = null;
     uploadedFilename: string = 'Mockup';
@@ -72,7 +73,10 @@ export class MockupScene {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
+        this.controls.maxDistance = 50; // Increased max distance for more zoom out
         this.controls.target.set(0, 0, 0);
+        this.controls.enablePan = true; // Ensure panning is enabled
+        this.controls.panSpeed = 1.5; // Make panning a bit faster/easier
         
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); // Reduced by 10% from 1.35
         this.scene.add(ambientLight);
@@ -417,7 +421,7 @@ export class MockupScene {
     }
     
     updateDimensions(params: any) {
-        const { d_mm, h_mm, l_mm, nw_mm, showLid, showNozzle, wrapPercent, rotX, posY, nozzleScale = 1.0 } = params;
+        const { d_mm, h_mm, l_mm, nw_mm, showLid, showNozzle, wrapPercent, rotX, posY, nozzleScale = 1.0, modelRotX = 0, modelRotY = 0, modelRotZ = 0, modelScale = 1.0 } = params;
         
         const r = (d_mm / 2) / 10;
         const h = h_mm / 10;
@@ -452,7 +456,6 @@ export class MockupScene {
         if (this.currentLayoutMode === 'single') {
             activeObj1.position.set(0, -totalHeight / 2, 0);
             activeObj1.rotation.set(0, 0, 0);
-            this.controls.target.set(0, 0, 0);
         } else {
             activeObj2.visible = true;
             
@@ -469,9 +472,19 @@ export class MockupScene {
             } else {
                 activeObj2.rotation.set(Math.PI / 5, 0, Math.PI / 2);
             }
-            
-            this.controls.target.set(0, 0, 0);
         }
+        
+        if (this.lastLayoutMode !== this.currentLayoutMode) {
+            this.controls.target.set(0, 0, 0);
+            this.lastLayoutMode = this.currentLayoutMode;
+        }
+
+        this.masterGroup.rotation.set(
+            THREE.MathUtils.degToRad(modelRotX),
+            THREE.MathUtils.degToRad(modelRotY),
+            THREE.MathUtils.degToRad(modelRotZ)
+        );
+        this.masterGroup.scale.set(modelScale, modelScale, modelScale);
 
         if(this.uploadedImage) {
             this.updateTexture(d_mm, h_mm, wrapPercent, rotX, posY);
@@ -566,119 +579,123 @@ export class MockupScene {
         });
     }
     
-    exportImage(qualityMode: string, format: string, isTransparent: boolean): string {
-        const currentW = this.container.clientWidth;
-        const currentH = this.container.clientHeight;
-        const aspect = currentW / currentH;
-        const oldPixelRatio = this.renderer.getPixelRatio();
-        const oldBackground = this.scene.background;
-        
-        let hiResW, hiResH, tempPixelRatio;
-        
-        if (qualityMode === '4k') {
-            hiResW = 4096;
-            hiResH = Math.round(hiResW / aspect);
-            tempPixelRatio = 1;
-        } else if (qualityMode === 'bg' && this.backgroundImage) {
-            const imgAspect = this.backgroundImage.width / this.backgroundImage.height;
-            if (aspect > imgAspect) {
-                hiResW = this.backgroundImage.width;
+    async exportImage(qualityMode: string, format: string, isTransparent: boolean): Promise<string> {
+        return new Promise((resolve) => {
+            const currentW = this.container.clientWidth;
+            const currentH = this.container.clientHeight;
+            const aspect = currentW / currentH;
+            const oldPixelRatio = this.renderer.getPixelRatio();
+            const oldBackground = this.scene.background;
+            
+            let hiResW, hiResH, tempPixelRatio;
+            
+            if (qualityMode === '4k') {
+                hiResW = 4096;
                 hiResH = Math.round(hiResW / aspect);
+                tempPixelRatio = 1;
+            } else if (qualityMode === 'bg' && this.backgroundImage) {
+                const imgAspect = this.backgroundImage.width / this.backgroundImage.height;
+                if (aspect > imgAspect) {
+                    hiResW = this.backgroundImage.width;
+                    hiResH = Math.round(hiResW / aspect);
+                } else {
+                    hiResH = this.backgroundImage.height;
+                    hiResW = Math.round(hiResH * aspect);
+                }
+                tempPixelRatio = 1;
+            } else if (qualityMode === '100') {
+                hiResW = currentW;
+                hiResH = currentH;
+                tempPixelRatio = oldPixelRatio;
             } else {
-                hiResH = this.backgroundImage.height;
-                hiResW = Math.round(hiResH * aspect);
+                hiResW = Math.max(1, Math.round(currentW * 0.75));
+                hiResH = Math.max(1, Math.round(currentH * 0.75));
+                tempPixelRatio = 1;
             }
-            tempPixelRatio = 1;
-        } else if (qualityMode === '100') {
-            hiResW = currentW;
-            hiResH = currentH;
-            tempPixelRatio = oldPixelRatio;
-        } else {
-            hiResW = Math.max(1, Math.round(currentW * 0.75));
-            hiResH = Math.max(1, Math.round(currentH * 0.75));
-            tempPixelRatio = 1;
-        }
-        
-        const hasBgImage = this.backgroundImage !== null;
-        const exportTransparent = isTransparent && !hasBgImage;
-        
-        if (hasBgImage) {
-            this.scene.background = null;
-        } else if (format === 'jpg') {
-            this.scene.background = exportTransparent ? new THREE.Color('#ffffff') : new THREE.Color(this.isDark ? '#0f172a' : '#f1f5f9');
-        } else {
-            this.scene.background = exportTransparent ? null : new THREE.Color(this.isDark ? '#0f172a' : '#f1f5f9');
-        }
-        
-        this.renderer.setPixelRatio(tempPixelRatio);
-        this.renderer.setSize(hiResW, hiResH, false);
-        this.renderer.render(this.scene, this.camera);
-        
-        const width = this.renderer.domElement.width;
-        const height = this.renderer.domElement.height;
-        
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = width;
-        tempCanvas.height = height;
-        const tempCtx = tempCanvas.getContext('2d');
-        
-        if (tempCtx) {
-            tempCtx.imageSmoothingEnabled = true;
-            tempCtx.imageSmoothingQuality = 'high';
+            
+            const hasBgImage = this.backgroundImage !== null;
+            const exportTransparent = isTransparent && !hasBgImage;
             
             if (hasBgImage) {
-                const canvasAspect = width / height;
-                const imgAspect = this.backgroundImage!.width / this.backgroundImage!.height;
-                let drawW, drawH, drawX, drawY;
-                if (canvasAspect > imgAspect) {
-                    drawW = width;
-                    drawH = width / imgAspect;
-                    drawX = 0;
-                    drawY = (height - drawH) / 2;
-                } else {
-                    drawH = height;
-                    drawW = height * imgAspect;
-                    drawX = (width - drawW) / 2;
-                    drawY = 0;
-                }
-                tempCtx.drawImage(this.backgroundImage!, drawX, drawY, drawW, drawH);
+                this.scene.background = null;
+            } else if (format === 'jpg') {
+                this.scene.background = exportTransparent ? new THREE.Color('#ffffff') : new THREE.Color(this.isDark ? '#0f172a' : '#f1f5f9');
+            } else {
+                this.scene.background = exportTransparent ? null : new THREE.Color(this.isDark ? '#0f172a' : '#f1f5f9');
             }
             
-            // Apply CSS filter (saturation) to exported image
-            tempCtx.filter = this.renderer.domElement.style.filter || 'none';
-            tempCtx.drawImage(this.renderer.domElement, 0, 0);
-        }
-        const sourceCanvas = tempCtx ? tempCanvas : this.renderer.domElement;
-        
-        let dataUrl = '';
-        if (format === 'svg') {
-            const pngData = sourceCanvas.toDataURL('image/png', 1.0);
-            const svgContent = `
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
-                    <image href="${pngData}" width="${width}" height="${height}" />
-                </svg>
-            `;
-            const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
-            dataUrl = URL.createObjectURL(blob);
-        } else if (format === 'pdf') {
-            const { jsPDF } = (window as any).jspdf;
-            const orientation = width > height ? 'l' : 'p';
-            const pdf = new jsPDF(orientation, 'pt', [width, height]);
-            const pngData = sourceCanvas.toDataURL(isTransparent ? 'image/png' : 'image/jpeg', 1.0);
-            pdf.addImage(pngData, isTransparent ? 'PNG' : 'JPEG', 0, 0, width, height);
-            const blob = pdf.output('blob');
-            dataUrl = URL.createObjectURL(blob);
-        } else if (format === 'jpg') {
-            dataUrl = sourceCanvas.toDataURL('image/jpeg', 0.95);
-        } else {
-            dataUrl = sourceCanvas.toDataURL('image/png', 1.0);
-        }
-
-        this.scene.background = oldBackground;
-        this.renderer.setPixelRatio(oldPixelRatio);
-        this.renderer.setSize(currentW, currentH);
-        this.renderer.render(this.scene, this.camera);
-        
-        return dataUrl;
+            this.renderer.setPixelRatio(tempPixelRatio);
+            this.renderer.setSize(hiResW, hiResH, false);
+            this.renderer.render(this.scene, this.camera);
+            
+            const width = this.renderer.domElement.width;
+            const height = this.renderer.domElement.height;
+            
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            if (tempCtx) {
+                tempCtx.imageSmoothingEnabled = true;
+                tempCtx.imageSmoothingQuality = 'high';
+                
+                if (hasBgImage) {
+                    const canvasAspect = width / height;
+                    const imgAspect = this.backgroundImage!.width / this.backgroundImage!.height;
+                    let drawW, drawH, drawX, drawY;
+                    if (canvasAspect > imgAspect) {
+                        drawW = width;
+                        drawH = width / imgAspect;
+                        drawX = 0;
+                        drawY = (height - drawH) / 2;
+                    } else {
+                        drawH = height;
+                        drawW = height * imgAspect;
+                        drawX = (width - drawW) / 2;
+                        drawY = 0;
+                    }
+                    tempCtx.drawImage(this.backgroundImage!, drawX, drawY, drawW, drawH);
+                }
+                
+                // Apply CSS filter (saturation) to exported image
+                tempCtx.filter = this.renderer.domElement.style.filter || 'none';
+                tempCtx.drawImage(this.renderer.domElement, 0, 0);
+            }
+            const sourceCanvas = tempCtx ? tempCanvas : this.renderer.domElement;
+            
+            const finalize = (blobUrl: string) => {
+                this.scene.background = oldBackground;
+                this.renderer.setPixelRatio(oldPixelRatio);
+                this.renderer.setSize(currentW, currentH);
+                this.renderer.render(this.scene, this.camera);
+                resolve(blobUrl);
+            };
+            
+            if (format === 'svg') {
+                const pngData = sourceCanvas.toDataURL('image/png', 1.0);
+                const svgContent = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">
+                        <image href="${pngData}" width="${width}" height="${height}" />
+                    </svg>
+                `;
+                const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+                finalize(URL.createObjectURL(blob));
+            } else if (format === 'pdf') {
+                const { jsPDF } = (window as any).jspdf;
+                const orientation = width > height ? 'l' : 'p';
+                const pdf = new jsPDF(orientation, 'pt', [width, height]);
+                const pngData = sourceCanvas.toDataURL(isTransparent ? 'image/png' : 'image/jpeg', 1.0);
+                pdf.addImage(pngData, isTransparent ? 'PNG' : 'JPEG', 0, 0, width, height);
+                const blob = pdf.output('blob');
+                finalize(URL.createObjectURL(blob));
+            } else {
+                const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
+                const quality = format === 'jpg' ? 0.95 : 1.0;
+                sourceCanvas.toBlob((blob) => {
+                    finalize(blob ? URL.createObjectURL(blob) : '');
+                }, mimeType, quality);
+            }
+        });
     }
 }

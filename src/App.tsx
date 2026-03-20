@@ -1,6 +1,31 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Moon, Sun, Maximize2, Minimize2, Loader2, Download, Upload, Box, CheckCircle } from 'lucide-react';
+import { Moon, Sun, Maximize2, Minimize2, Loader2, Download, Upload, Box, CheckCircle, ChevronDown, Image as ImageIcon, Sliders, Palette, Lightbulb, Save, Rotate3D, Layers, Type } from 'lucide-react';
 import { MockupScene } from './ThreeScene';
+
+const Accordion = ({ title, icon, children, defaultOpen = false }: { title: string, icon: React.ReactNode, children: React.ReactNode, defaultOpen?: boolean }) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  return (
+    <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl rounded-2xl border border-white/40 dark:border-slate-700/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] overflow-hidden mb-3 transition-all duration-300">
+      <button 
+        onClick={() => setIsOpen(!isOpen)} 
+        className="w-full px-4 py-3.5 flex items-center justify-between text-left focus:outline-none hover:bg-white/40 dark:hover:bg-slate-700/40 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-1.5 bg-blue-500/10 dark:bg-blue-400/10 rounded-lg text-blue-600 dark:text-blue-400">
+            {icon}
+          </div>
+          <h2 className="text-[13px] font-semibold text-slate-800 dark:text-slate-200 tracking-wide">{title}</h2>
+        </div>
+        <ChevronDown size={16} className={`text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      <div className={`px-4 transition-all duration-300 ease-in-out ${isOpen ? 'pb-4 opacity-100' : 'max-h-0 opacity-0 pb-0 overflow-hidden'}`}>
+        <div className="pt-2 border-t border-slate-200/50 dark:border-slate-700/50 space-y-4">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function App() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -14,7 +39,7 @@ export default function App() {
   const [dimHeight, setDimHeight] = useState(145);
   const [dimLidheight, setDimLidheight] = useState(45);
   const [dimNozzleWidth, setDimNozzleWidth] = useState(23);
-  const [dimNozzleScale, setDimNozzleScale] = useState(2.0);
+  const [dimNozzleScale, setDimNozzleScale] = useState(1.0);
   const [showLid, setShowLid] = useState(true);
   const [showNozzle, setShowNozzle] = useState(true);
   
@@ -33,6 +58,12 @@ export default function App() {
   const [decalX, setDecalX] = useState(0.5);
   const [decalY, setDecalY] = useState(0.5);
   
+  const [modelRotX, setModelRotX] = useState(0);
+  const [modelRotY, setModelRotY] = useState(0);
+  const [modelRotZ, setModelRotZ] = useState(0);
+  const [modelScale, setModelScale] = useState(1.0);
+  const [bgScale, setBgScale] = useState(1.0);
+  
   const [uploadedImage, setUploadedImage] = useState<HTMLImageElement | null>(null);
   const [uploadedFilename, setUploadedFilename] = useState('Mockup');
   const [uploadText, setUploadText] = useState('PDF / Bild hochladen');
@@ -50,6 +81,8 @@ export default function App() {
   const [imgFormat, setImgFormat] = useState('png');
   const [imgQuality, setImgQuality] = useState('100');
   const [imgTransparent, setImgTransparent] = useState(true);
+
+  const [activeFullscreenMenu, setActiveFullscreenMenu] = useState<string | null>(null);
 
   useEffect(() => {
     if (isDark) {
@@ -100,7 +133,7 @@ export default function App() {
     scene.uploadedFilename = uploadedFilename;
     scene.backgroundImage = backgroundImage;
     
-    scene.setLightingIntensity(lightingIntensity);
+    scene.setLightingIntensity(lightingIntensity * 0.5);
     scene.setColorSaturation(colorSaturation);
     
     scene.updateDimensions({
@@ -113,11 +146,15 @@ export default function App() {
       wrapPercent: decalScale,
       rotX: decalX,
       posY: decalY,
-      nozzleScale: dimNozzleScale
+      nozzleScale: dimNozzleScale * 2.7,
+      modelRotX,
+      modelRotY,
+      modelRotZ,
+      modelScale
     });
   }, [
     isDark, currentModelType, currentLayoutMode, dimDiam, dimHeight, dimLidheight, dimNozzleWidth, showLid, showNozzle,
-    colorBody, colorDome, colorValve, colorLid, sliderMetalness, sliderLidGloss, sliderLidTransparency, sliderValveTransparency, decalScale, decalX, decalY, uploadedImage, uploadedFilename, backgroundImage, dimNozzleScale, lightingIntensity, colorSaturation
+    colorBody, colorDome, colorValve, colorLid, sliderMetalness, sliderLidGloss, sliderLidTransparency, sliderValveTransparency, decalScale, decalX, decalY, uploadedImage, uploadedFilename, backgroundImage, dimNozzleScale, lightingIntensity, colorSaturation, modelRotX, modelRotY, modelRotZ, modelScale
   ]);
 
   const handleBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -149,7 +186,7 @@ export default function App() {
       setColorLid('#ffffff');
       setSliderMetalness(0.4);
       setSliderLidGloss(0.9);
-      setDimNozzleScale(2.0);
+      setDimNozzleScale(1.0);
     } else {
       setDimDiam(48);
       setDimHeight(215);
@@ -235,14 +272,6 @@ export default function App() {
       setDownloadUrl(url);
       setDownloadFilename(filename);
       setDownloadReady(true);
-      
-      const tempLink = document.createElement('a');
-      tempLink.style.display = 'none';
-      tempLink.href = url;
-      tempLink.download = filename;
-      document.body.appendChild(tempLink);
-      tempLink.click();
-      document.body.removeChild(tempLink);
     } catch (e) {
       alert("Fehler beim Erstellen der 3D-Datei.");
     } finally {
@@ -254,26 +283,18 @@ export default function App() {
     if (!sceneRef.current) return;
     setIsExporting(true);
     
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
-        const dataUrl = sceneRef.current!.exportImage(imgQuality, imgFormat, imgTransparent);
+        const dataUrl = await sceneRef.current!.exportImage(imgQuality, imgFormat, imgTransparent);
         
         let suffix = imgQuality === '4k' ? '4K' : (imgQuality === 'bg' ? 'Original' : (imgQuality === '100' ? 'Standard' : 'Kompakt'));
         let bgSuffix = (imgTransparent && imgFormat !== 'jpg') ? 'Transparent' : 'MitHG';
         let layoutSuffix = currentLayoutMode === 'double' ? 'Doppel' : 'Einzeln';
         const filename = `${uploadedFilename}-${layoutSuffix}-${suffix}-${bgSuffix}.${imgFormat}`;
         
-        const tempLink = document.createElement('a');
-        tempLink.style.display = 'none';
-        tempLink.href = dataUrl;
-        tempLink.download = filename;
-        document.body.appendChild(tempLink);
-        tempLink.click();
-        document.body.removeChild(tempLink);
-        
-        if (imgFormat === 'svg' || imgFormat === 'pdf') {
-          // Object URLs need to be revoked later, but for simplicity we let them be or revoke after a delay
-        }
+        setDownloadUrl(dataUrl);
+        setDownloadFilename(filename);
+        setDownloadReady(true);
       } catch (e) {
         console.error(e);
         alert("Fehler beim Erstellen des Bildes.");
@@ -283,6 +304,40 @@ export default function App() {
     }, 100);
   };
 
+  const handleSaveFile = async () => {
+    try {
+      const res = await fetch(downloadUrl);
+      const blob = await res.blob();
+      const file = new File([blob], downloadFilename, { type: blob.type });
+      
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: downloadFilename
+        });
+      } else {
+        const tempLink = document.createElement('a');
+        tempLink.style.display = 'none';
+        tempLink.href = downloadUrl;
+        tempLink.download = downloadFilename;
+        document.body.appendChild(tempLink);
+        tempLink.click();
+        document.body.removeChild(tempLink);
+      }
+    } catch (e: any) {
+      console.error("Save failed", e);
+      if (e.name !== 'AbortError') {
+        const tempLink = document.createElement('a');
+        tempLink.style.display = 'none';
+        tempLink.href = downloadUrl;
+        tempLink.download = downloadFilename;
+        document.body.appendChild(tempLink);
+        tempLink.click();
+        document.body.removeChild(tempLink);
+      }
+    }
+  };
+
   const activeClasses = "flex-1 py-2 px-3 rounded-md border text-sm font-bold transition-colors bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/40 dark:border-blue-400 dark:text-blue-300";
   const inactiveClasses = "flex-1 py-2 px-3 rounded-md border text-sm font-bold transition-colors bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700";
 
@@ -290,10 +345,10 @@ export default function App() {
     <div className="flex flex-col md:flex-row min-h-[100dvh] md:h-[100dvh] w-full relative bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 transition-colors duration-300 md:overflow-hidden">
       
       {/* 3D VIEWPORT */}
-      <div className={`w-full shrink-0 border-b md:border-b-0 border-slate-200 dark:border-slate-800 transition-all duration-300 overflow-hidden ${isFullscreen ? 'fixed inset-0 z-50 h-[100dvh]' : 'h-[45vh] sticky top-0 z-20 md:h-full md:flex-1 md:relative md:z-10 bg-slate-50 dark:bg-slate-900'}`}>
+      <div className={`w-full shrink-0 border-b md:border-b-0 border-slate-200 dark:border-slate-800 transition-all duration-300 overflow-hidden ${isFullscreen ? 'fixed inset-0 z-50 h-[100dvh] w-[100vw]' : 'h-[45vh] sticky top-0 z-20 md:h-full md:flex-1 md:relative md:z-10 bg-slate-50 dark:bg-slate-900'}`}>
         
         <div className="absolute top-4 left-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur p-2 rounded shadow-sm z-20 text-[10px] md:text-xs text-slate-600 dark:text-slate-300 pointer-events-none border border-white/50 dark:border-slate-700/50">
-          <span className="font-bold">Kamera:</span> 1-Finger wischen, 2-Finger zoomen
+          <span className="font-bold">Kamera:</span> 1-Finger drehen, 2-Finger zoomen/verschieben
         </div>
 
         <button 
@@ -301,7 +356,7 @@ export default function App() {
             setIsFullscreen(!isFullscreen);
             setTimeout(() => sceneRef.current?.handleResize(), 50);
           }}
-          className="absolute top-4 right-4 bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-700 backdrop-blur p-3 md:p-2 rounded-lg shadow-lg z-20 text-slate-800 dark:text-slate-200 transition-colors flex items-center gap-2 border border-slate-200 dark:border-slate-600 active:scale-95"
+          className="absolute top-4 right-4 bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-700 backdrop-blur p-3 md:p-2 rounded-lg shadow-lg z-50 text-slate-800 dark:text-slate-200 transition-colors flex items-center gap-2 border border-slate-200 dark:border-slate-600 active:scale-95"
         >
           {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
           <span className="text-sm font-bold hidden md:inline">{isFullscreen ? 'Schließen' : 'Vollbild'}</span>
@@ -320,36 +375,288 @@ export default function App() {
               <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle size={32} />
               </div>
-              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Download gestartet!</h3>
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Deine Datei ist bereit!</h3>
               <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700/50 text-yellow-800 dark:text-yellow-200 text-xs p-3 rounded mb-4 text-left leading-relaxed">
-                Der Download sollte automatisch starten.<br/><br/>
-                <strong>Falls nichts passiert (oder in der App):</strong><br/>
-                Klicke nochmal auf den Button oder drücke (am Handy) <strong>lange</strong> darauf und wähle "Link herunterladen".
+                Klicke auf den Button unten, um die Datei auf deinem Gerät zu speichern oder zu teilen.
               </div>
               
-              <a 
-                href={downloadUrl} 
-                download={downloadFilename} 
-                onClick={() => setTimeout(() => setDownloadReady(false), 1500)}
+              <button 
+                onClick={handleSaveFile}
                 className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md mb-3 transition-colors"
               >
-                Datei Herunterladen
-              </a>
-              <button onClick={() => setDownloadReady(false)} className="text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-bold mt-2">Abbrechen</button>
+                Speichern / Teilen
+              </button>
+              <button onClick={() => setDownloadReady(false)} className="text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-bold mt-2">Schließen</button>
             </div>
           </div>
         )}
 
         {backgroundImage && (
-          <img src={backgroundImage.src} className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none" alt="Background" />
+          <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden flex items-center justify-center">
+            <img src={backgroundImage.src} className="w-full h-full object-cover" style={{ transform: `scale(${bgScale})` }} alt="Background" />
+          </div>
         )}
 
         <div ref={containerRef} className={`w-full h-full cursor-grab active:cursor-grabbing outline-none touch-none relative z-10 transition-colors duration-500 ${backgroundImage ? 'bg-transparent' : 'bg-gradient-to-b from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900'}`}></div>
+
+        {/* FULLSCREEN CONTROLS */}
+        {isFullscreen && (
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-end gap-4 pointer-events-none">
+            
+            {/* Rotation Menu */}
+            <div className="relative pointer-events-auto">
+              {activeFullscreenMenu === 'rotation' && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-64 bg-slate-900/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-4 shadow-2xl">
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5">
+                        <label>Kippen (Vor / Zurück)</label>
+                        <span className="font-medium text-slate-200">{modelRotX}°</span>
+                      </div>
+                      <input type="range" min="-180" max="180" step="1" value={modelRotX} onChange={e => setModelRotX(parseInt(e.target.value))} className="w-full accent-blue-500" />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5">
+                        <label>Drehen (Links / Rechts)</label>
+                        <span className="font-medium text-slate-200">{modelRotY}°</span>
+                      </div>
+                      <input type="range" min="-180" max="180" step="1" value={modelRotY} onChange={e => setModelRotY(parseInt(e.target.value))} className="w-full accent-blue-500" />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5">
+                        <label>Rollen (Seitlich kippen)</label>
+                        <span className="font-medium text-slate-200">{modelRotZ}°</span>
+                      </div>
+                      <input type="range" min="-180" max="180" step="1" value={modelRotZ} onChange={e => setModelRotZ(parseInt(e.target.value))} className="w-full accent-blue-500" />
+                    </div>
+                  </div>
+                </div>
+              )}
+              <button 
+                onClick={() => setActiveFullscreenMenu(activeFullscreenMenu === 'rotation' ? null : 'rotation')}
+                className={`p-3 rounded-full shadow-lg backdrop-blur-md transition-all ${activeFullscreenMenu === 'rotation' ? 'bg-blue-600 text-white' : 'bg-slate-900/60 text-slate-200 hover:bg-slate-800/80 border border-slate-700/50'}`}
+                title="Rotation"
+              >
+                <Rotate3D size={20} />
+              </button>
+            </div>
+
+            {/* Decal Menu */}
+            <div className="relative pointer-events-auto">
+              {activeFullscreenMenu === 'decal' && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-64 bg-slate-900/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-4 shadow-2xl">
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5"><label>Etikett hochladen</label></div>
+                      <label className="flex items-center justify-center w-full h-10 px-4 transition-colors border-2 border-dashed rounded-xl cursor-pointer border-slate-600 hover:border-blue-500 hover:bg-slate-800/50">
+                        <div className="flex items-center space-x-2 text-slate-300">
+                          <Upload size={16} />
+                          <span className="text-xs font-medium">Bild auswählen</span>
+                        </div>
+                        <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
+                      </label>
+                    </div>
+                    {uploadedImage && (
+                      <>
+                        <div>
+                          <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5"><label>Größe (Umfang)</label></div>
+                          <input type="range" min="0.1" max="1.5" step="0.01" value={decalScale} onChange={e => setDecalScale(parseFloat(e.target.value))} className="w-full accent-blue-500" />
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5"><label>Horizontal (Links / Rechts drehen)</label></div>
+                          <input type="range" min="0" max="1" step="0.01" value={decalX} onChange={e => setDecalX(parseFloat(e.target.value))} className="w-full accent-blue-500" />
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5"><label>Vertikal (Oben / Unten schieben)</label></div>
+                          <input type="range" min="0" max="1" step="0.01" value={decalY} onChange={e => setDecalY(parseFloat(e.target.value))} className="w-full accent-blue-500" />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+              <button 
+                onClick={() => setActiveFullscreenMenu(activeFullscreenMenu === 'decal' ? null : 'decal')}
+                className={`p-3 rounded-full shadow-lg backdrop-blur-md transition-all ${activeFullscreenMenu === 'decal' ? 'bg-blue-600 text-white' : 'bg-slate-900/60 text-slate-200 hover:bg-slate-800/80 border border-slate-700/50'}`}
+                title="Etikett"
+              >
+                <ImageIcon size={20} />
+              </button>
+            </div>
+
+            {/* Dimensions Menu */}
+            <div className="relative pointer-events-auto">
+              {activeFullscreenMenu === 'dimensions' && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-64 bg-slate-900/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-4 shadow-2xl">
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5">
+                        <label>Größe (Skalierung)</label>
+                        <span className="font-medium text-slate-200">{modelScale.toFixed(2)}x</span>
+                      </div>
+                      <input type="range" min="0.05" max="3" step="0.01" value={modelScale} onChange={e => setModelScale(parseFloat(e.target.value))} className="w-full accent-blue-500" />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5">
+                        <label>Breite / Tiefe</label>
+                        <span className="font-medium text-slate-200">{dimDiam}</span>
+                      </div>
+                      <input type="range" min="30" max="100" step="1" value={dimDiam} onChange={e => setDimDiam(parseInt(e.target.value))} className="w-full accent-blue-500" />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5">
+                        <label>Höhe</label>
+                        <span className="font-medium text-slate-200">{dimHeight}</span>
+                      </div>
+                      <input type="range" min="50" max="300" step="1" value={dimHeight} onChange={e => setDimHeight(parseInt(e.target.value))} className="w-full accent-blue-500" />
+                    </div>
+                  </div>
+                </div>
+              )}
+              <button 
+                onClick={() => setActiveFullscreenMenu(activeFullscreenMenu === 'dimensions' ? null : 'dimensions')}
+                className={`p-3 rounded-full shadow-lg backdrop-blur-md transition-all ${activeFullscreenMenu === 'dimensions' ? 'bg-blue-600 text-white' : 'bg-slate-900/60 text-slate-200 hover:bg-slate-800/80 border border-slate-700/50'}`}
+                title="Abmessungen"
+              >
+                <Box size={20} />
+              </button>
+            </div>
+
+            {/* Colors Menu */}
+            <div className="relative pointer-events-auto">
+              {activeFullscreenMenu === 'colors' && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-64 bg-slate-900/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-4 shadow-2xl">
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5"><label>Flaschenfarbe</label></div>
+                      <div className="flex items-center gap-3">
+                        <input type="color" value={colorBody} onChange={e => setColorBody(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 p-0 bg-transparent" />
+                        <span className="text-xs font-mono text-slate-300 uppercase">{colorBody}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5"><label>Deckelfarbe</label></div>
+                      <div className="flex items-center gap-3">
+                        <input type="color" value={colorLid} onChange={e => setColorLid(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 p-0 bg-transparent" />
+                        <span className="text-xs font-mono text-slate-300 uppercase">{colorLid}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5">
+                        <label>Rauheit (Deckel)</label>
+                      </div>
+                      <input type="range" min="0" max="1" step="0.05" value={sliderLidGloss} onChange={e => setSliderLidGloss(parseFloat(e.target.value))} className="w-full accent-blue-500" />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5">
+                        <label>Metallisch (Flasche)</label>
+                      </div>
+                      <input type="range" min="0" max="1" step="0.05" value={sliderMetalness} onChange={e => setSliderMetalness(parseFloat(e.target.value))} className="w-full accent-blue-500" />
+                    </div>
+                  </div>
+                </div>
+              )}
+              <button 
+                onClick={() => setActiveFullscreenMenu(activeFullscreenMenu === 'colors' ? null : 'colors')}
+                className={`p-3 rounded-full shadow-lg backdrop-blur-md transition-all ${activeFullscreenMenu === 'colors' ? 'bg-blue-600 text-white' : 'bg-slate-900/60 text-slate-200 hover:bg-slate-800/80 border border-slate-700/50'}`}
+                title="Farben & Finish"
+              >
+                <Palette size={20} />
+              </button>
+            </div>
+
+            {/* Lighting Menu */}
+            <div className="relative pointer-events-auto">
+              {activeFullscreenMenu === 'lighting' && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-64 bg-slate-900/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-4 shadow-2xl">
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5">
+                        <label>Helligkeit</label>
+                        <span className="font-medium text-slate-200">{Math.round(lightingIntensity * 100)}%</span>
+                      </div>
+                      <input type="range" min="0" max="2" step="0.1" value={lightingIntensity} onChange={e => setLightingIntensity(parseFloat(e.target.value))} className="w-full accent-blue-500" />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5">
+                        <label>Farbsättigung</label>
+                        <span className="font-medium text-slate-200">{Math.round(colorSaturation * 100)}%</span>
+                      </div>
+                      <input type="range" min="0" max="2" step="0.1" value={colorSaturation} onChange={e => setColorSaturation(parseFloat(e.target.value))} className="w-full accent-blue-500" />
+                    </div>
+                  </div>
+                </div>
+              )}
+              <button 
+                onClick={() => setActiveFullscreenMenu(activeFullscreenMenu === 'lighting' ? null : 'lighting')}
+                className={`p-3 rounded-full shadow-lg backdrop-blur-md transition-all ${activeFullscreenMenu === 'lighting' ? 'bg-blue-600 text-white' : 'bg-slate-900/60 text-slate-200 hover:bg-slate-800/80 border border-slate-700/50'}`}
+                title="Beleuchtung"
+              >
+                <Lightbulb size={20} />
+              </button>
+            </div>
+
+            {/* Background Menu */}
+            <div className="relative pointer-events-auto">
+              {activeFullscreenMenu === 'background' && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-64 bg-slate-900/80 backdrop-blur-md border border-slate-700/50 rounded-2xl p-4 shadow-2xl">
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5"><label>Hintergrundbild</label></div>
+                      <label className="flex items-center justify-center w-full h-10 px-4 transition-colors border-2 border-dashed rounded-xl cursor-pointer border-slate-600 hover:border-blue-500 hover:bg-slate-800/50">
+                        <div className="flex items-center space-x-2 text-slate-300">
+                          <Upload size={16} />
+                          <span className="text-xs font-medium">Bild auswählen</span>
+                        </div>
+                        <input type="file" className="hidden" accept="image/*" onChange={handleBgUpload} />
+                      </label>
+                      {backgroundImage && (
+                        <button onClick={() => setBackgroundImage(null)} className="mt-2 w-full py-1.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg transition-colors">
+                          Hintergrund entfernen
+                        </button>
+                      )}
+                    </div>
+                    {backgroundImage && (
+                      <div>
+                        <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5">
+                          <label>Hintergrund Größe</label>
+                          <span className="font-medium text-slate-200">{bgScale.toFixed(2)}x</span>
+                        </div>
+                        <input type="range" min="0.1" max="10" step="0.1" value={bgScale} onChange={e => setBgScale(parseFloat(e.target.value))} className="w-full accent-blue-500" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              <button 
+                onClick={() => setActiveFullscreenMenu(activeFullscreenMenu === 'background' ? null : 'background')}
+                className={`p-3 rounded-full shadow-lg backdrop-blur-md transition-all ${activeFullscreenMenu === 'background' ? 'bg-blue-600 text-white' : 'bg-slate-900/60 text-slate-200 hover:bg-slate-800/80 border border-slate-700/50'}`}
+                title="Hintergrund"
+              >
+                <Layers size={20} />
+              </button>
+            </div>
+
+            {/* Capture Button */}
+            <div className="pointer-events-auto">
+              <button 
+                onClick={() => {
+                  setActiveFullscreenMenu(null);
+                  handleExportImage();
+                }}
+                className="p-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-transform active:scale-90"
+                title="Bild aufnehmen"
+              >
+                <Download size={24} />
+              </button>
+            </div>
+
+          </div>
+        )}
       </div>
 
       {/* SIDEBAR UI */}
-      {!isFullscreen && (
-        <div className="w-full md:w-[400px] flex flex-col z-0 order-last md:order-first bg-slate-50 dark:bg-slate-900 md:border-r border-slate-200 dark:border-slate-800 shadow-2xl md:h-full md:overflow-hidden">
+      <div className={`w-full md:w-[400px] flex flex-col z-0 order-last md:order-first bg-slate-50 dark:bg-slate-900 md:border-r border-slate-200 dark:border-slate-800 shadow-2xl md:h-full md:overflow-hidden ${isFullscreen ? 'hidden' : ''}`}>
           
           <div className="p-4 bg-slate-900 dark:bg-black text-white shrink-0 flex justify-between items-center z-10 shadow-md">
             <div>
@@ -364,12 +671,10 @@ export default function App() {
             </button>
           </div>
 
-          <div className="p-4 flex-1 space-y-4 pb-8 md:overflow-y-auto md:min-h-0"> 
+          <div className="p-4 flex-1 space-y-2 pb-8 md:overflow-y-auto md:min-h-0"> 
             
-            <div className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-200 dark:border-blue-800 shadow-sm">
-              <h2 className="text-[11px] font-bold text-blue-800 dark:text-blue-400 uppercase tracking-wider mb-4">Dein Etikett (Design)</h2>
-
-              <label className="flex flex-col items-center justify-center w-full h-16 border-2 border-dashed border-blue-400 dark:border-blue-600 rounded-lg cursor-pointer bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors mb-4 relative overflow-hidden group shadow-sm">
+            <Accordion title="Dein Etikett (Design)" icon={<ImageIcon size={16} />} defaultOpen={true}>
+              <label className="flex flex-col items-center justify-center w-full h-16 border-2 border-dashed border-blue-400 dark:border-blue-600 rounded-xl cursor-pointer bg-blue-50/50 dark:bg-slate-800/50 hover:bg-blue-100/50 dark:hover:bg-slate-700/50 transition-colors mb-4 relative overflow-hidden group shadow-sm">
                 {isUploading && (
                   <div className="absolute inset-0 bg-blue-500 dark:bg-blue-600 flex items-center justify-center transition-opacity z-10">
                     <span className="text-white font-bold text-sm animate-pulse">Wird verarbeitet...</span>
@@ -377,202 +682,241 @@ export default function App() {
                 )}
                 <div className="flex items-center justify-center gap-2">
                   <Upload size={18} className="text-blue-600 dark:text-blue-400" />
-                  <span className="text-sm text-blue-700 dark:text-blue-300 font-bold">{uploadText}</span>
+                  <span className="text-sm text-blue-700 dark:text-blue-300 font-semibold">{uploadText}</span>
                 </div>
                 <input type="file" className="hidden" accept=".pdf, .png, .jpg, .jpeg, application/pdf, image/*" onChange={handleFileUpload} />
               </label>
 
               <div className={`space-y-5 transition-opacity ${!uploadedImage ? 'opacity-50 pointer-events-none' : ''}`}>
-                <button onClick={() => { setDecalScale(1.0); setDecalX(0.5); setDecalY(0.5); }} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded shadow-sm transition-colors active:scale-95">
+                <button onClick={() => { setDecalScale(1.0); setDecalX(0.5); setDecalY(0.5); }} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors active:scale-95">
                   Auf Objekt zentrieren
                 </button>
                 
-                <div className="space-y-4 pt-3 border-t border-blue-200/50 dark:border-blue-800/50">
+                <div className="space-y-4 pt-2">
                   <div>
-                    <div className="flex justify-between text-[10px] font-bold text-blue-800 dark:text-blue-400 mb-1"><label>Größe (Umfang)</label></div>
-                    <input type="range" min="0.1" max="1.5" step="0.01" value={decalScale} onChange={e => setDecalScale(parseFloat(e.target.value))} />
+                    <div className="flex justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5"><label>Größe (Umfang)</label></div>
+                    <input type="range" min="0.1" max="1.5" step="0.01" value={decalScale} onChange={e => setDecalScale(parseFloat(e.target.value))} className="w-full accent-blue-500" />
                   </div>
                   <div>
-                    <div className="flex justify-between text-[10px] font-bold text-blue-800 dark:text-blue-400 mb-1"><label>Horizontal (Links / Rechts drehen)</label></div>
-                    <input type="range" min="0" max="1" step="0.01" value={decalX} onChange={e => setDecalX(parseFloat(e.target.value))} />
+                    <div className="flex justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5"><label>Horizontal (Links / Rechts drehen)</label></div>
+                    <input type="range" min="0" max="1" step="0.01" value={decalX} onChange={e => setDecalX(parseFloat(e.target.value))} className="w-full accent-blue-500" />
                   </div>
                   <div>
-                    <div className="flex justify-between text-[10px] font-bold text-blue-800 dark:text-blue-400 mb-1"><label>Vertikal (Oben / Unten schieben)</label></div>
-                    <input type="range" min="0" max="1" step="0.01" value={decalY} onChange={e => setDecalY(parseFloat(e.target.value))} />
+                    <div className="flex justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5"><label>Vertikal (Oben / Unten schieben)</label></div>
+                    <input type="range" min="0" max="1" step="0.01" value={decalY} onChange={e => setDecalY(parseFloat(e.target.value))} className="w-full accent-blue-500" />
                   </div>
                 </div>
               </div>
-            </div>
+            </Accordion>
 
-            <div className="bg-slate-100 dark:bg-slate-800/80 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-              <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Hintergrund (Szene)</h2>
-              <label className="flex flex-col items-center justify-center w-full h-12 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg cursor-pointer bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors mb-2 relative overflow-hidden group shadow-sm">
+            <Accordion title="Hintergrund (Szene)" icon={<ImageIcon size={16} />}>
+              <label className="flex flex-col items-center justify-center w-full h-14 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl cursor-pointer bg-slate-50/50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors mb-2 relative overflow-hidden group shadow-sm">
                 <div className="flex items-center justify-center gap-2">
                   <Upload size={16} className="text-slate-500 dark:text-slate-400" />
-                  <span className="text-xs text-slate-600 dark:text-slate-300 font-bold">{bgUploadText}</span>
+                  <span className="text-xs text-slate-600 dark:text-slate-300 font-semibold">{bgUploadText}</span>
                 </div>
                 <input type="file" className="hidden" accept="image/*" onChange={handleBgUpload} />
               </label>
               {backgroundImage && (
-                <button onClick={() => {
-                  setBackgroundImage(null);
-                  if (imgQuality === 'bg') setImgQuality('4k');
-                }} className="w-full py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 text-xs font-bold rounded transition-colors border border-red-200 dark:border-red-800/50">
-                  Hintergrund entfernen
-                </button>
+                <div className="space-y-3 mt-3">
+                  <div>
+                    <div className="flex justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                      <label>Hintergrund Größe</label>
+                      <span className="font-medium text-slate-700 dark:text-slate-300">{bgScale.toFixed(2)}x</span>
+                    </div>
+                    <input type="range" min="0.1" max="10" step="0.1" value={bgScale} onChange={e => setBgScale(parseFloat(e.target.value))} className="w-full accent-blue-500" />
+                  </div>
+                  <button onClick={() => {
+                    setBackgroundImage(null);
+                    if (imgQuality === 'bg') setImgQuality('4k');
+                  }} className="w-full py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 text-xs font-semibold rounded-xl transition-colors border border-red-200 dark:border-red-800/50">
+                    Hintergrund entfernen
+                  </button>
+                </div>
               )}
-            </div>
+            </Accordion>
 
-            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-              <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Produkt wählen</h2>
-              <div className="flex gap-2">
-                <button onClick={() => handleModelTypeChange('can')} className={currentModelType === 'can' ? activeClasses : inactiveClasses}>Sprühdose</button>
-                <button onClick={() => handleModelTypeChange('cartridge')} className={currentModelType === 'cartridge' ? activeClasses : inactiveClasses}>Silikonkartusche</button>
+            <Accordion title="Produkt & Layout" icon={<Layers size={16} />}>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-2">Produkt wählen</h3>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleModelTypeChange('can')} className={currentModelType === 'can' ? activeClasses : inactiveClasses}>Sprühdose</button>
+                    <button onClick={() => handleModelTypeChange('cartridge')} className={currentModelType === 'cartridge' ? activeClasses : inactiveClasses}>Silikonkartusche</button>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-2">Darstellung (Layout)</h3>
+                  <div className="flex gap-2">
+                    <button onClick={() => setCurrentLayoutMode('single')} className={currentLayoutMode === 'single' ? activeClasses : inactiveClasses}>Einzeln</button>
+                    <button onClick={() => setCurrentLayoutMode('double')} className={currentLayoutMode === 'double' ? activeClasses : inactiveClasses}>Doppel</button>
+                  </div>
+                </div>
               </div>
-            </div>
+            </Accordion>
 
-            <div className="bg-slate-100 dark:bg-slate-800/80 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-              <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Darstellung (Layout)</h2>
-              <div className="flex gap-2">
-                <button onClick={() => setCurrentLayoutMode('single')} className={currentLayoutMode === 'single' ? activeClasses : inactiveClasses}>Einzeln</button>
-                <button onClick={() => setCurrentLayoutMode('double')} className={currentLayoutMode === 'double' ? activeClasses : inactiveClasses}>Doppel (Präsentation)</button>
+            <Accordion title="Ausrichtung (Rotation)" icon={<Rotate3D size={16} />}>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                    <label>Kippen (Vor / Zurück)</label>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">{modelRotX}°</span>
+                  </div>
+                  <input type="range" min="-180" max="180" step="1" value={modelRotX} onChange={e => setModelRotX(parseInt(e.target.value))} className="w-full accent-blue-500" />
+                </div>
+                <div>
+                  <div className="flex justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                    <label>Drehen (Links / Rechts)</label>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">{modelRotY}°</span>
+                  </div>
+                  <input type="range" min="-180" max="180" step="1" value={modelRotY} onChange={e => setModelRotY(parseInt(e.target.value))} className="w-full accent-blue-500" />
+                </div>
+                <div>
+                  <div className="flex justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                    <label>Rollen (Seitlich kippen)</label>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">{modelRotZ}°</span>
+                  </div>
+                  <input type="range" min="-180" max="180" step="1" value={modelRotZ} onChange={e => setModelRotZ(parseInt(e.target.value))} className="w-full accent-blue-500" />
+                </div>
+                <button onClick={() => { setModelRotX(0); setModelRotY(0); setModelRotZ(0); }} className="w-full py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl transition-colors">
+                  Rotation zurücksetzen
+                </button>
               </div>
-            </div>
+            </Accordion>
 
-            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-              <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-4">Abmessungen</h2>
+            <Accordion title="Abmessungen" icon={<Sliders size={16} />}>
               <div className="space-y-5">
                 <div>
-                  <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
-                    <label>Durchmesser (Breite)</label>
-                    <span className="font-bold text-slate-700 dark:text-slate-200">{dimDiam} mm</span>
+                  <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1.5">
+                    <label>Größe (Skalierung)</label>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">{modelScale.toFixed(2)}x</span>
                   </div>
-                  <input type="range" min="30" max="90" step="1" value={dimDiam} onChange={e => setDimDiam(parseInt(e.target.value))} />
+                  <input type="range" min="0.05" max="3" step="0.01" value={modelScale} onChange={e => setModelScale(parseFloat(e.target.value))} className="w-full accent-blue-500" />
                 </div>
                 <div>
-                  <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
-                    <label>Höhe (Hauptkörper)</label>
-                    <span className="font-bold text-slate-700 dark:text-slate-200">{dimHeight} mm</span> 
+                  <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1.5">
+                    <label>Durchmesser (Breite)</label>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">{dimDiam} mm</span>
                   </div>
-                  <input type="range" min="50" max="300" step="1" value={dimHeight} onChange={e => setDimHeight(parseInt(e.target.value))} /> 
+                  <input type="range" min="30" max="90" step="1" value={dimDiam} onChange={e => setDimDiam(parseInt(e.target.value))} className="w-full accent-blue-500" />
                 </div>
-                <div className="pt-3 border-t border-slate-100 dark:border-slate-700">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs text-slate-500 dark:text-slate-400 font-bold">Deckel anzeigen</label>
-                    <input type="checkbox" checked={showLid} onChange={e => setShowLid(e.target.checked)} className="w-5 h-5 accent-blue-600" />
+                <div>
+                  <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1.5">
+                    <label>Höhe (Hauptkörper)</label>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">{dimHeight} mm</span> 
                   </div>
+                  <input type="range" min="50" max="300" step="1" value={dimHeight} onChange={e => setDimHeight(parseInt(e.target.value))} className="w-full accent-blue-500" /> 
+                </div>
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-700/50">
                   <div className="flex items-center justify-between mb-3">
-                    <label className="text-xs text-slate-500 dark:text-slate-400 font-bold">Düse anzeigen</label>
-                    <input type="checkbox" checked={showNozzle} onChange={e => setShowNozzle(e.target.checked)} className="w-5 h-5 accent-blue-600" />
+                    <label className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Deckel anzeigen</label>
+                    <input type="checkbox" checked={showLid} onChange={e => setShowLid(e.target.checked)} className="w-5 h-5 accent-blue-500 rounded" />
                   </div>
-                  <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                  <div className="flex items-center justify-between mb-4">
+                    <label className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Düse anzeigen</label>
+                    <input type="checkbox" checked={showNozzle} onChange={e => setShowNozzle(e.target.checked)} className="w-5 h-5 accent-blue-500 rounded" />
+                  </div>
+                  <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1.5">
                     <label>Aufsatzhöhe (Deckel/Düse)</label>
-                    <span className="font-bold text-slate-700 dark:text-slate-200">{dimLidheight} mm</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">{dimLidheight} mm</span>
                   </div>
-                  <input type="range" min="10" max="150" step="1" value={dimLidheight} onChange={e => setDimLidheight(parseInt(e.target.value))} />
+                  <input type="range" min="10" max="150" step="1" value={dimLidheight} onChange={e => setDimLidheight(parseInt(e.target.value))} className="w-full accent-blue-500" />
                 </div>
 
                 {currentModelType === 'cartridge' && (
-                  <div className="pt-3 border-t border-slate-100 dark:border-slate-700">
-                    <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-700/50">
+                    <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1.5">
                       <label>Düsenbreite & Gewinde</label>
-                      <span className="font-bold text-slate-700 dark:text-slate-200">{dimNozzleWidth} mm</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">{dimNozzleWidth} mm</span>
                     </div>
-                    <input type="range" min="10" max="50" step="1" value={dimNozzleWidth} onChange={e => setDimNozzleWidth(parseInt(e.target.value))} />
+                    <input type="range" min="10" max="50" step="1" value={dimNozzleWidth} onChange={e => setDimNozzleWidth(parseInt(e.target.value))} className="w-full accent-blue-500" />
                   </div>
                 )}
                 
                 {currentModelType === 'can' && (
-                  <div className="pt-3 border-t border-slate-100 dark:border-slate-700">
-                    <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1">
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-700/50">
+                    <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mb-1.5">
                       <label>Düsengröße (Skalierung)</label>
-                      <span className="font-bold text-slate-700 dark:text-slate-200">{Math.round(dimNozzleScale * 100)}%</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">{Math.round(dimNozzleScale * 100)}%</span>
                     </div>
-                    <input type="range" min="0.5" max="4.0" step="0.05" value={dimNozzleScale} onChange={e => setDimNozzleScale(parseFloat(e.target.value))} />
+                    <input type="range" min="0.2" max="3.0" step="0.05" value={dimNozzleScale} onChange={e => setDimNozzleScale(parseFloat(e.target.value))} className="w-full accent-blue-500" />
                   </div>
                 )}
               </div>
-            </div>
+            </Accordion>
 
-            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider m-0">Farben & Finish</h2>
-              </div>
-              
+            <Accordion title="Farben & Finish" icon={<Palette size={16} />}>
               <div className="grid grid-cols-2 gap-4 mb-5">
                 <div>
-                  <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Körperfarbe</label>
-                  <input type="color" value={colorBody} onChange={e => setColorBody(e.target.value)} className="w-full h-10" />
+                  <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Körperfarbe</label>
+                  <input type="color" value={colorBody} onChange={e => setColorBody(e.target.value)} className="w-full h-10 rounded-lg cursor-pointer border-0 p-0" />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Aufsatzfarbe</label>
-                  <input type="color" value={colorLid} onChange={e => setColorLid(e.target.value)} className="w-full h-10" />
+                  <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Aufsatzfarbe</label>
+                  <input type="color" value={colorLid} onChange={e => setColorLid(e.target.value)} className="w-full h-10 rounded-lg cursor-pointer border-0 p-0" />
                 </div>
                 {currentModelType === 'can' && (
                   <>
                     <div>
-                      <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Kuppelfarbe</label>
-                      <input type="color" value={colorDome} onChange={e => setColorDome(e.target.value)} className="w-full h-10" />
+                      <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Kuppelfarbe</label>
+                      <input type="color" value={colorDome} onChange={e => setColorDome(e.target.value)} className="w-full h-10 rounded-lg cursor-pointer border-0 p-0" />
                     </div>
                     <div>
-                      <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Düsenfarbe</label>
-                      <input type="color" value={colorValve} onChange={e => setColorValve(e.target.value)} className="w-full h-10" />
+                      <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Düsenfarbe</label>
+                      <input type="color" value={colorValve} onChange={e => setColorValve(e.target.value)} className="w-full h-10 rounded-lg cursor-pointer border-0 p-0" />
                     </div>
                   </>
                 )}
               </div>
               
-              <div className="space-y-5 pt-3 border-t border-slate-100 dark:border-slate-700">
+              <div className="space-y-5 pt-3 border-t border-slate-100 dark:border-slate-700/50">
                 <div>
-                  <div className="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  <div className="flex justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
                     <label>Körper-Material (Plastik &rarr; Chrom)</label>
                   </div>
-                  <input type="range" min="0" max="1" step="0.05" value={sliderMetalness} onChange={e => setSliderMetalness(parseFloat(e.target.value))} />
+                  <input type="range" min="0" max="1" step="0.05" value={sliderMetalness} onChange={e => setSliderMetalness(parseFloat(e.target.value))} className="w-full accent-blue-500" />
                 </div>
                 <div>
-                  <div className="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  <div className="flex justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
                     <label>Aufsatz-Glanz (Matt &rarr; Lack)</label>
                   </div>
-                  <input type="range" min="0" max="1" step="0.05" value={sliderLidGloss} onChange={e => setSliderLidGloss(parseFloat(e.target.value))} />
+                  <input type="range" min="0" max="1" step="0.05" value={sliderLidGloss} onChange={e => setSliderLidGloss(parseFloat(e.target.value))} className="w-full accent-blue-500" />
                 </div>
                 <div>
-                  <div className="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  <div className="flex justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
                     <label>Aufsatz-Transparenz (Massiv &rarr; Glas)</label>
                   </div>
-                  <input type="range" min="0" max="1" step="0.05" value={sliderLidTransparency} onChange={e => setSliderLidTransparency(parseFloat(e.target.value))} />
+                  <input type="range" min="0" max="1" step="0.05" value={sliderLidTransparency} onChange={e => setSliderLidTransparency(parseFloat(e.target.value))} className="w-full accent-blue-500" />
                 </div>
                 {currentModelType === 'can' && (
                   <div>
-                    <div className="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    <div className="flex justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
                       <label>Düsen-Transparenz (Massiv &rarr; Glas)</label>
                     </div>
-                    <input type="range" min="0" max="1" step="0.05" value={sliderValveTransparency} onChange={e => setSliderValveTransparency(parseFloat(e.target.value))} />
+                    <input type="range" min="0" max="1" step="0.05" value={sliderValveTransparency} onChange={e => setSliderValveTransparency(parseFloat(e.target.value))} className="w-full accent-blue-500" />
                   </div>
                 )}
               </div>
-            </div>
+            </Accordion>
 
-            <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider m-0">Beleuchtung & Sättigung</h2>
-              </div>
+            <Accordion title="Beleuchtung & Sättigung" icon={<Lightbulb size={16} />}>
               <div className="space-y-5">
                 <div>
-                  <div className="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  <div className="flex justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
                     <label>Beleuchtung (Dunkel &rarr; Hell)</label>
-                    <span className="font-bold text-slate-700 dark:text-slate-200">{Math.round(lightingIntensity * 100)}%</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">{Math.round(lightingIntensity * 100)}%</span>
                   </div>
-                  <input type="range" min="0.2" max="2.0" step="0.05" value={lightingIntensity} onChange={e => setLightingIntensity(parseFloat(e.target.value))} />
+                  <input type="range" min="0.2" max="2.0" step="0.05" value={lightingIntensity} onChange={e => setLightingIntensity(parseFloat(e.target.value))} className="w-full accent-blue-500" />
                 </div>
                 <div>
-                  <div className="flex justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                  <div className="flex justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
                     <label>Farbsättigung (Grau &rarr; Bunt)</label>
-                    <span className="font-bold text-slate-700 dark:text-slate-200">{Math.round(colorSaturation * 100)}%</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">{Math.round(colorSaturation * 100)}%</span>
                   </div>
-                  <input type="range" min="0" max="2.0" step="0.05" value={colorSaturation} onChange={e => setColorSaturation(parseFloat(e.target.value))} />
+                  <input type="range" min="0" max="2.0" step="0.05" value={colorSaturation} onChange={e => setColorSaturation(parseFloat(e.target.value))} className="w-full accent-blue-500" />
                 </div>
               </div>
-            </div>
+            </Accordion>
           </div>
 
           <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0 space-y-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
@@ -614,7 +958,6 @@ export default function App() {
             </div>
           </div>
         </div>
-      )}
     </div>
   );
 }
