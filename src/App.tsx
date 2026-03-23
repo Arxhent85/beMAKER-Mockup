@@ -74,9 +74,6 @@ export default function App() {
   
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [downloadReady, setDownloadReady] = useState(false);
-  const [downloadUrl, setDownloadUrl] = useState('');
-  const [downloadFilename, setDownloadFilename] = useState('');
   
   const [imgFormat, setImgFormat] = useState('png');
   const [imgQuality, setImgQuality] = useState('100');
@@ -263,15 +260,23 @@ export default function App() {
     }
   };
 
+  const triggerDownload = (url: string, filename: string) => {
+    const tempLink = document.createElement('a');
+    tempLink.style.display = 'none';
+    tempLink.href = url;
+    tempLink.download = filename;
+    document.body.appendChild(tempLink);
+    tempLink.click();
+    document.body.removeChild(tempLink);
+  };
+
   const handleExportGLB = async () => {
     if (!sceneRef.current) return;
     setIsExporting(true);
     try {
       const url = await sceneRef.current.exportGLB();
       const filename = `${uploadedFilename}.glb`;
-      setDownloadUrl(url);
-      setDownloadFilename(filename);
-      setDownloadReady(true);
+      triggerDownload(url, filename);
     } catch (e) {
       alert("Fehler beim Erstellen der 3D-Datei.");
     } finally {
@@ -292,9 +297,7 @@ export default function App() {
         let layoutSuffix = currentLayoutMode === 'double' ? 'Doppel' : 'Einzeln';
         const filename = `${uploadedFilename}-${layoutSuffix}-${suffix}-${bgSuffix}.${imgFormat}`;
         
-        setDownloadUrl(dataUrl);
-        setDownloadFilename(filename);
-        setDownloadReady(true);
+        triggerDownload(dataUrl, filename);
       } catch (e) {
         console.error(e);
         alert("Fehler beim Erstellen des Bildes.");
@@ -302,40 +305,6 @@ export default function App() {
         setIsExporting(false);
       }
     }, 100);
-  };
-
-  const handleSaveFile = async () => {
-    try {
-      const res = await fetch(downloadUrl);
-      const blob = await res.blob();
-      const file = new File([blob], downloadFilename, { type: blob.type });
-      
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: downloadFilename
-        });
-      } else {
-        const tempLink = document.createElement('a');
-        tempLink.style.display = 'none';
-        tempLink.href = downloadUrl;
-        tempLink.download = downloadFilename;
-        document.body.appendChild(tempLink);
-        tempLink.click();
-        document.body.removeChild(tempLink);
-      }
-    } catch (e: any) {
-      console.error("Save failed", e);
-      if (e.name !== 'AbortError') {
-        const tempLink = document.createElement('a');
-        tempLink.style.display = 'none';
-        tempLink.href = downloadUrl;
-        tempLink.download = downloadFilename;
-        document.body.appendChild(tempLink);
-        tempLink.click();
-        document.body.removeChild(tempLink);
-      }
-    }
   };
 
   const activeClasses = "flex-1 py-2 px-3 rounded-md border text-sm font-bold transition-colors bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/40 dark:border-blue-400 dark:text-blue-300";
@@ -366,28 +335,6 @@ export default function App() {
           <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center transition-opacity duration-300">
             <Loader2 className="animate-spin h-10 w-10 text-white mb-4" />
             <p className="text-white font-bold tracking-wide">Bereite Datei vor...</p>
-          </div>
-        )}
-
-        {downloadReady && (
-          <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-md z-40 flex flex-col items-center justify-center transition-opacity duration-300 px-4">
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-2xl text-center max-w-sm w-full border border-slate-200 dark:border-slate-700">
-              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle size={32} />
-              </div>
-              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Deine Datei ist bereit!</h3>
-              <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700/50 text-yellow-800 dark:text-yellow-200 text-xs p-3 rounded mb-4 text-left leading-relaxed">
-                Klicke auf den Button unten, um die Datei auf deinem Gerät zu speichern oder zu teilen.
-              </div>
-              
-              <button 
-                onClick={handleSaveFile}
-                className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md mb-3 transition-colors"
-              >
-                Speichern / Teilen
-              </button>
-              <button onClick={() => setDownloadReady(false)} className="text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 font-bold mt-2">Schließen</button>
-            </div>
           </div>
         )}
 
