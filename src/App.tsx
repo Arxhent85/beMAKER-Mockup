@@ -70,6 +70,7 @@ export default function App() {
   const [isUploading, setIsUploading] = useState(false);
   
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null);
+  const [isBgVisible, setIsBgVisible] = useState(true);
   const [bgUploadText, setBgUploadText] = useState('Hintergrundbild hochladen');
   
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -338,13 +339,13 @@ export default function App() {
           </div>
         )}
 
-        {backgroundImage && (
+        {backgroundImage && isBgVisible && (
           <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden flex items-center justify-center">
             <img src={backgroundImage.src} className="w-full h-full object-cover" style={{ transform: `scale(${bgScale})` }} alt="Background" />
           </div>
         )}
 
-        <div ref={containerRef} className={`w-full h-full cursor-grab active:cursor-grabbing outline-none touch-none relative z-10 transition-colors duration-500 ${backgroundImage ? 'bg-transparent' : 'bg-gradient-to-b from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900'}`}></div>
+        <div ref={containerRef} className={`w-full h-full cursor-grab active:cursor-grabbing outline-none touch-none relative z-10 transition-colors duration-500 ${(backgroundImage && isBgVisible) ? 'bg-transparent' : 'bg-gradient-to-b from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900'}`}></div>
 
         {/* FULLSCREEN CONTROLS */}
         {isFullscreen && (
@@ -564,12 +565,24 @@ export default function App() {
                       )}
                     </div>
                     {backgroundImage && (
-                      <div>
-                        <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5">
-                          <label>Hintergrund Größe</label>
-                          <span className="font-medium text-slate-200">{bgScale.toFixed(2)}x</span>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-semibold text-slate-300">Hintergrund anzeigen</label>
+                          <input type="checkbox" checked={isBgVisible} onChange={e => setIsBgVisible(e.target.checked)} className="w-4 h-4 accent-blue-500 rounded" />
                         </div>
-                        <input type="range" min="0.1" max="10" step="0.1" value={bgScale} onChange={e => setBgScale(parseFloat(e.target.value))} className="w-full accent-blue-500" />
+                        <div>
+                          <div className="flex justify-between text-[10px] font-semibold text-slate-300 mb-1.5">
+                            <label>Hintergrund Größe</label>
+                            <span className="font-medium text-slate-200">{bgScale.toFixed(2)}x</span>
+                          </div>
+                          <input type="range" min="0.1" max="10" step="0.1" value={bgScale} onChange={e => setBgScale(parseFloat(e.target.value))} className="w-full accent-blue-500" />
+                        </div>
+                        <button onClick={() => {
+                          setBackgroundImage(null);
+                          setIsBgVisible(true);
+                        }} className="w-full py-1.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg transition-colors">
+                          Hintergrund entfernen
+                        </button>
                       </div>
                     )}
                   </div>
@@ -666,6 +679,10 @@ export default function App() {
               </label>
               {backgroundImage && (
                 <div className="space-y-3 mt-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Hintergrund anzeigen</label>
+                    <input type="checkbox" checked={isBgVisible} onChange={e => setIsBgVisible(e.target.checked)} className="w-4 h-4 accent-blue-500 rounded" />
+                  </div>
                   <div>
                     <div className="flex justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
                       <label>Hintergrund Größe</label>
@@ -675,6 +692,7 @@ export default function App() {
                   </div>
                   <button onClick={() => {
                     setBackgroundImage(null);
+                    setIsBgVisible(true);
                     if (imgQuality === 'bg') setImgQuality('4k');
                   }} className="w-full py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 text-xs font-semibold rounded-xl transition-colors border border-red-200 dark:border-red-800/50">
                     Hintergrund entfernen
