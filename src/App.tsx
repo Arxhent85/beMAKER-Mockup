@@ -293,10 +293,10 @@ export default function App() {
       try {
         // If background is hidden, force transparent export
         const exportTransparent = (backgroundImage && isBgVisible) ? imgTransparent : true;
-        const dataUrl = await sceneRef.current!.exportImage(imgQuality, imgFormat, exportTransparent);
+        const dataUrl = await sceneRef.current!.exportImage(imgQuality, imgFormat, exportTransparent, isBgVisible);
         
         let suffix = imgQuality === '4k' ? '4K' : (imgQuality === 'bg' ? 'Original' : (imgQuality === '100' ? 'Standard' : 'Kompakt'));
-        let bgSuffix = (exportTransparent && imgFormat !== 'jpg') ? 'Transparent' : 'MitHG';
+        let bgSuffix = ((backgroundImage && isBgVisible) && exportTransparent && imgFormat !== 'jpg') ? 'Transparent' : 'MitHG';
         let layoutSuffix = currentLayoutMode === 'double' ? 'Doppel' : 'Einzeln';
         const filename = `${uploadedFilename}-${layoutSuffix}-${suffix}-${bgSuffix}.${imgFormat}`;
         

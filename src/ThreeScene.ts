@@ -579,7 +579,7 @@ export class MockupScene {
         });
     }
     
-    async exportImage(qualityMode: string, format: string, isTransparent: boolean): Promise<string> {
+    async exportImage(qualityMode: string, format: string, isTransparent: boolean, isBgVisible: boolean): Promise<string> {
         return new Promise((resolve) => {
             const currentW = this.container.clientWidth;
             const currentH = this.container.clientHeight;
@@ -613,11 +613,11 @@ export class MockupScene {
                 tempPixelRatio = 1;
             }
             
-            const hasBgImage = this.backgroundImage !== null;
-            const exportTransparent = isTransparent && !hasBgImage;
+            const hasBgImage = this.backgroundImage !== null && isBgVisible;
+            const exportTransparent = isTransparent || !isBgVisible;
             
             if (hasBgImage) {
-                this.scene.background = null;
+                this.scene.background = null; // Background image is drawn manually later
             } else if (format === 'jpg') {
                 this.scene.background = exportTransparent ? new THREE.Color('#ffffff') : new THREE.Color(this.isDark ? '#0f172a' : '#f1f5f9');
             } else {
