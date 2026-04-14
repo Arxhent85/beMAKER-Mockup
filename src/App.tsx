@@ -291,10 +291,12 @@ export default function App() {
     
     setTimeout(async () => {
       try {
-        const dataUrl = await sceneRef.current!.exportImage(imgQuality, imgFormat, imgTransparent);
+        // If background is hidden, force transparent export
+        const exportTransparent = (backgroundImage && isBgVisible) ? imgTransparent : true;
+        const dataUrl = await sceneRef.current!.exportImage(imgQuality, imgFormat, exportTransparent);
         
         let suffix = imgQuality === '4k' ? '4K' : (imgQuality === 'bg' ? 'Original' : (imgQuality === '100' ? 'Standard' : 'Kompakt'));
-        let bgSuffix = (imgTransparent && imgFormat !== 'jpg') ? 'Transparent' : 'MitHG';
+        let bgSuffix = (exportTransparent && imgFormat !== 'jpg') ? 'Transparent' : 'MitHG';
         let layoutSuffix = currentLayoutMode === 'double' ? 'Doppel' : 'Einzeln';
         const filename = `${uploadedFilename}-${layoutSuffix}-${suffix}-${bgSuffix}.${imgFormat}`;
         
@@ -909,10 +911,10 @@ export default function App() {
                   <option value="50">Kompakt (ca. 1/2 Größe)</option>
                 </select>
               </div>
-              <div className={`flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-700/60 ${(imgFormat === 'jpg' || backgroundImage) ? 'opacity-50' : ''}`}>
+              <div className={`flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-700/60 ${(imgFormat === 'jpg' || (backgroundImage && isBgVisible)) ? 'opacity-50' : ''}`}>
                 <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Hintergrund:</span>
                 <label className="flex items-center gap-1.5 cursor-pointer">
-                  <input type="checkbox" checked={(imgFormat === 'jpg' || backgroundImage) ? false : imgTransparent} disabled={imgFormat === 'jpg' || backgroundImage !== null} onChange={e => setImgTransparent(e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
+                  <input type="checkbox" checked={(imgFormat === 'jpg' || (backgroundImage && isBgVisible)) ? false : imgTransparent} disabled={imgFormat === 'jpg' || (backgroundImage && isBgVisible)} onChange={e => setImgTransparent(e.target.checked)} className="w-3.5 h-3.5 accent-blue-600" />
                   <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Transparent</span>
                 </label>
               </div>
